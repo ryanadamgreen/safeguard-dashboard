@@ -138,9 +138,16 @@ export default function LoginPage() {
       const dest = role === "ADMIN" ? "/admin" : "/";
       console.log("[verifyOtp] redirecting to:", dest);
 
-      // Use a hard navigation so the browser sends the newly-set session cookie
-      // with the request — router.push can race the middleware cookie check.
-      window.location.href = dest;
+      // Layer 1: Next.js soft navigation (immediate).
+      router.replace(dest);
+
+      // Layer 2: hard navigation after 500ms — fires if router.replace stalled
+      // (seen on Vercel when the middleware cookie check races the client router).
+      setTimeout(() => { window.location.href = dest; }, 500);
+
+      // Layer 3: full reload after 2s — session cookie is confirmed set,
+      // so a reload will re-hit middleware which will redirect to dest.
+      setTimeout(() => { window.location.reload(); }, 2000);
     } catch (err) {
       console.error("[verifyOtp] caught:", err);
       setOtpVerifying(false);

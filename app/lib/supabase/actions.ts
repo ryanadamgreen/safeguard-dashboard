@@ -6,6 +6,7 @@
  * and executes it on the server.
  */
 
+import { randomInt } from "node:crypto";
 import { createSupabaseServerClient } from "../supabase";
 
 /**
@@ -202,6 +203,103 @@ export async function removeStaff(id: string): Promise<{ error: string | null }>
   const { error } = await supabase.from("staff").delete().eq("id", id);
   if (error) {
     console.error("[removeStaff]", error.message);
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
+// ─── Device pairing actions ───────────────────────────────────────────────────
+
+/**
+ * Insert a new device row with a cryptographically random pairing code.
+ * Returns the device id, the plain-text pairing code, and its expiry ISO string.
+ */
+export async function createDevice(
+  childId: string,
+  homeId: string,
+  details: {
+    device_name: string;
+    device_type: string;
+    manufacturer: string;
+    model: string | null;
+    ownership: string;
+  }
+): Promise<{ id: string | null; pairingCode: string; pairingExpiresAt: string; error: string | null }> {
+  const supabase = createSupabaseServerClient();
+
+  const pairingCode = randomInt(100000, 1000000).toString();
+  const pairingExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+  const { data: row, error } = await supabase
+    .from("devices")
+    .insert({
+      child_id: childId,
+      home_id: homeId,
+      device_name: details.device_name,
+      device_type: details.device_type,
+      manufacturer: details.manufacturer,
+      model: details.model,
+      ownership: details.ownership,
+      pairing_code: pairingCode,
+      pairing_expires_at: pairingExpiresAt,
+      status: "pending",
+      created_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("[createDevice]", error.message);
+    return { id: null, pairingCode: "", pairingExpiresAt: "", error: error.message };
+  }
+
+  return { id: row.id, pairingCode, pairingExpiresAt, error: null };
+}
+
+/**
+ * Poll for pairing completion.
+ * Returns pairedAt (non-null when device has confirmed pairing)
+ * and isExpired (true if expiry has passed and device never paired).
+ */
+export async function checkPairingStatus(
+  deviceId: string
+): Promise<{ pairedAt: string | null; isExpired: boolean; error: string | null }> {
+  const supabase = createSupabaseServerClient();
+  const { data: row, error } = await supabase
+    .from("devices")
+    .select("paired_at, pairing_expires_at")
+    .eq("id", deviceId)
+    .single();
+
+  if (error) {
+    console.error("[checkPairingStatus]", error.message);
+    return { pairedAt: null, isExpired: false, error: error.message };
+  }
+
+  const isExpired =
+    !row.paired_at &&
+    row.pairing_expires_at != null &&
+    new Date(row.pairing_expires_at) < new Date();
+
+  return { pairedAt: row.paired_at ?? null, isExpired, error: null };
+}
+
+/**
+ * Mark a device as expired if it was never paired.
+ * Called client-side when the countdown reaches zero.
+ */
+export async function expirePairingCode(
+  deviceId: string
+): Promise<{ error: string | null }> {
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase
+    .from("devices")
+    .update({ status: "expired" })
+    .eq("id", deviceId)
+    .is("paired_at", null);
+
+  if (error) {
+    console.error("[expirePairingCode]", error.message);
     return { error: error.message };
   }
   return { error: null };

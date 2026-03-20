@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "../../components/AuthProvider";
 import type { DbChild, DbAlert, DbStaff, DbDevice } from "../../lib/supabase/queries";
 import type { DeviceStatus } from "../../lib/types";
+import { createDevice, checkPairingStatus, expirePairingCode } from "../../lib/supabase/actions";
 
 // ── UI Types ──────────────────────────────────────────────────────────────────
 
@@ -996,11 +997,12 @@ function AddDeviceModal({ child, onClose }: { child: UiChild; onClose: () => voi
   const [ownership, setOwnership] = useState<Ownership>("org");
 
   // Step 2 — Pairing
-  const [code] = useState(() =>
-    Math.floor(100000 + Math.random() * 900000).toString()
-  );
+  const [deviceDbId, setDeviceDbId] = useState<string | null>(null);
+  const [pairingCode, setPairingCode] = useState("");
   const [connected, setConnected] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(600); // 10 min
+  const [loading, setLoading] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Countdown timer
   useEffect(() => {
@@ -1009,22 +1011,54 @@ function AddDeviceModal({ child, onClose }: { child: UiChild; onClose: () => voi
     return () => clearInterval(id);
   }, [step, connected, secondsLeft]);
 
-  // Simulate pairing after 8 seconds
+  // Mark device as expired in DB when countdown hits zero
   useEffect(() => {
-    if (step !== "pairing") return;
-    const t = setTimeout(() => setConnected(true), 8000);
-    return () => clearTimeout(t);
-  }, [step]);
+    if (secondsLeft === 0 && !connected && deviceDbId) {
+      expirePairingCode(deviceDbId);
+    }
+  }, [secondsLeft, connected, deviceDbId]);
 
-  function handleNext() {
+  // Poll for pairing completion every 3 seconds
+  useEffect(() => {
+    if (step !== "pairing" || connected || secondsLeft === 0 || !deviceDbId) return;
+    const id = setInterval(async () => {
+      const result = await checkPairingStatus(deviceDbId);
+      if (result.pairedAt) {
+        setConnected(true);
+      } else if (result.isExpired) {
+        setSecondsLeft(0);
+      }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [step, connected, secondsLeft, deviceDbId]);
+
+  async function handleNext() {
     const resolvedName = deviceName.trim() || `${manufacturer} ${deviceType}`;
     setDeviceName(resolvedName);
+    setLoading(true);
+    setCreateError(null);
+    const result = await createDevice(child.id, child.homeId, {
+      device_name: resolvedName,
+      device_type: deviceType,
+      manufacturer,
+      model: model.trim() || null,
+      ownership,
+    });
+    setLoading(false);
+    if (result.error || !result.id) {
+      setCreateError(result.error ?? "Failed to create device");
+      return;
+    }
+    setDeviceDbId(result.id);
+    setPairingCode(result.pairingCode);
+    const expiresAt = new Date(result.pairingExpiresAt);
+    setSecondsLeft(Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000)));
     setStep("pairing");
   }
 
   const expired = secondsLeft === 0 && !connected;
-  const p1 = code.slice(0, 3);
-  const p2 = code.slice(3);
+  const p1 = pairingCode.slice(0, 3);
+  const p2 = pairingCode.slice(3);
 
   const fieldClass = "w-full px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white";
   const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5";
@@ -1159,6 +1193,9 @@ function AddDeviceModal({ child, onClose }: { child: UiChild; onClose: () => voi
               </div>
             </div>
 
+            {createError && (
+              <p className="px-6 pb-2 text-xs text-red-600">{createError}</p>
+            )}
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100">
               <button
                 onClick={onClose}
@@ -1168,12 +1205,22 @@ function AddDeviceModal({ child, onClose }: { child: UiChild; onClose: () => voi
               </button>
               <button
                 onClick={handleNext}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={loading}
+                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
               >
-                Next
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    Next
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </>
+                )}
               </button>
             </div>
           </>
