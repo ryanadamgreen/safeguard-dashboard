@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(kill %1)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(taskkill /F /PID 58836)",
+      "Bash(cmd.exe /c \"taskkill /F /PID 58836\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(powershell.exe -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Host 'done'\")",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find /c/Users/ryana/safeguard-dashboard -not -path */node_modules/* -not -path */.next/* -type f -name *.ts* -o -name *.json -o -name *.css)",
+      "Bash(node -e \":*)",
+      "Bash(npx next:*)",
+      "Bash(grep -l \"from.*data\\\\|from.*billingStore\" /c/Users/ryana/safeguard-dashboard/app/components/*.tsx)",
+      "Bash(ls \"c:/Users/ryana/safeguard-dashboard/app/\\(dashboard\\)/children/\")",
+      "Bash(head -60 \"c:\\\\Users\\\\ryana\\\\safeguard-dashboard\\\\app\\\\\\(dashboard\\)\\\\children\\\\ChildrenClient.tsx\")",
+      "Bash(sed -i 's|from \"\"../../lib/data\"\";|from \"\"../../lib/types\"\";|' \"/c/Users/ryana/safeguard-dashboard/app/\\(dashboard\\)/alerts/AlertsClient.tsx\")",
+      "Bash(sed -i 's|from \"\"../lib/data\"\";|from \"\"../lib/types\"\";|' \"/c/Users/ryana/safeguard-dashboard/app/\\(dashboard\\)/DashboardClient.tsx\")",
+      "Bash(sed -i 's|import type { DeviceStatus } from \"\"../../lib/data\"\";|import type { DeviceStatus } from \"\"../../lib/types\"\";|' \"/c/Users/ryana/safeguard-dashboard/app/\\(dashboard\\)/children/ChildrenClient.tsx\")",
+      "Bash(sed -i 's|from \"\"./data\"\";|from \"\"./types\"\";|g' /c/Users/ryana/safeguard-dashboard/app/lib/generateTamperReport.ts)",
+      "Bash(sed -i 's|from \"\"./data\"\";|from \"\"./types\"\";|g' /c/Users/ryana/safeguard-dashboard/app/lib/email.ts)",
+      "Bash(sed -i 's|from \"\"./data\"\";|from \"\"./types\"\";|g' /c/Users/ryana/safeguard-dashboard/app/lib/generateAlertReport.ts)",
+      "Bash(sed -i 's|from \"\"./data\"\";|from \"\"./types\"\";|g' /c/Users/ryana/safeguard-dashboard/app/lib/generateReport.ts)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
