@@ -13,6 +13,7 @@
  */
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "../lib/supabase";
 
 const supabase = createSupabaseBrowserClient();
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,7 +39,11 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      window.location.href = "/admin";
+      // Use soft navigation so the session cookie written by createBrowserClient
+      // is committed before any middleware auth check runs. A hard navigation
+      // (window.location.href) can race the cookie flush and land on /login again.
+      router.push("/admin");
+      router.refresh();
     } catch {
       setError("An unexpected error occurred. Please try again.");
       setLoading(false);
