@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getHomes, getOrganisations } from "../../lib/supabase/queries";
 import HomesClient from "./HomesClient";
 

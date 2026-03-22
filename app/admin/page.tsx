@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getHomes, getStaff, getOrganisations } from "../lib/supabase/queries";
 import AdminOverviewClient from "./AdminOverviewClient";
 
