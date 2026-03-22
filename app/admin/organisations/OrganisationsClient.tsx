@@ -109,10 +109,11 @@ function AddOrgModal({
   onAdd,
 }: {
   onClose: () => void;
-  onAdd: (f: OrgForm) => Promise<void>;
+  onAdd: (f: OrgForm) => Promise<{ error?: string }>;
 }) {
   const [form, setForm] = useState<OrgForm>(emptyOrgForm);
   const [errors, setErrors] = useState<Partial<Record<keyof OrgForm, string>>>({});
+  const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(false);
 
   function validate() {
@@ -135,13 +136,18 @@ function AddOrgModal({
   async function handleSubmit() {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
+    setSubmitError("");
     setLoading(true);
     const resolvedDays = form.trialLengthOption === "custom"
       ? parseInt(form.customTrialDays, 10)
       : form.trialDays;
     try {
-      await onAdd({ ...form, trialDays: resolvedDays });
-      onClose();
+      const result = await onAdd({ ...form, trialDays: resolvedDays });
+      if (result?.error) {
+        setSubmitError(result.error);
+      } else {
+        onClose();
+      }
     } finally {
       setLoading(false);
     }
@@ -279,6 +285,11 @@ function AddOrgModal({
           </div>
         </div>
 
+        {submitError && (
+          <div className="mx-6 mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+            {submitError}
+          </div>
+        )}
         <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
           <button onClick={onClose} disabled={loading} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50">
             Cancel
@@ -644,15 +655,14 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
     return { ...base, ...(billingOverrides[orgId] ?? {}) };
   }
 
-  async function addOrg(f: OrgForm) {
-    const newId = crypto.randomUUID();
-
+  async function addOrg(f: OrgForm): Promise<{ error?: string }> {
+    // 1. Create Stripe customer (best-effort — don't block on failure)
     let stripeCustomerId: string | undefined;
     try {
       const res = await fetch("/api/stripe/create-customer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId: newId, orgName: f.name, email: f.contactEmail, address: f.address || undefined }),
+        body: JSON.stringify({ orgName: f.name, email: f.contactEmail, address: f.address || undefined }),
       });
       const json = (await res.json()) as { customerId?: string; error?: string };
       if (json.customerId) stripeCustomerId = json.customerId;
@@ -661,6 +671,32 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
       console.warn("[addOrg] Could not reach Stripe API:", err);
     }
 
+    // 2. Persist to database
+    const res = await fetch("/api/organisations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: f.name,
+        primary_contact_name: f.contactName,
+        primary_contact_email: f.contactEmail,
+        phone: f.phone || undefined,
+        address: f.address || undefined,
+        subscription_status: f.startOnTrial ? "trialing" : "inactive",
+        trial_days: f.startOnTrial ? f.trialDays : undefined,
+        stripe_customer_id: stripeCustomerId,
+      }),
+    });
+
+    const json = (await res.json()) as { org?: { id: string }; error?: string };
+
+    if (!res.ok || !json.org) {
+      console.error("[addOrg] insert failed:", json.error);
+      return { error: json.error ?? "Failed to create organisation. Please try again." };
+    }
+
+    const newId = json.org.id;
+
+    // 3. Update local state with the real DB id
     setBillingOverrides(prev => ({
       ...prev,
       [newId]: {
@@ -668,6 +704,7 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
         homeCount: 0,
         trialEndsAt: f.startOnTrial ? trialEndDate(f.trialDays) : undefined,
         stripeCustomerId,
+        failedPayment: false,
       },
     }));
 
@@ -683,6 +720,8 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
         createdDate: new Date().toISOString().slice(0, 10),
       },
     ]);
+
+    return {};
   }
 
   async function sendPaymentLink(org: Organisation, toEmail: string, ccEmails: string[]): Promise<void> {
