@@ -96,11 +96,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Resolve initial session once
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user?.email) {
-        fetchStaffProfile(session.user.email).then((staffUser) => {
-          applyUser(staffUser);
-          setIsLoading(false);
-          initialised.current = true;
-        });
+        fetchStaffProfile(session.user.email)
+          .then((staffUser) => {
+            applyUser(staffUser);
+          })
+          .catch((err) => {
+            console.error("[AuthProvider] fetchStaffProfile threw:", err);
+          })
+          .finally(() => {
+            setIsLoading(false);
+            initialised.current = true;
+          });
       } else {
         setIsLoading(false);
         initialised.current = true;
