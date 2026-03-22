@@ -132,14 +132,15 @@ export interface DbAlert {
  * All organisations ordered by name.
  */
 export async function getOrganisations(): Promise<DbOrganisation[]> {
+  console.log("[getOrganisations] service role key present:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("organisations")
     .select("*")
     .order("name");
 
+  console.log("[getOrganisations] rows:", data?.length ?? 0, "error:", error?.message ?? null);
   if (error) {
-    console.error("[getOrganisations]", error.message);
     return [];
   }
   return data as DbOrganisation[];
