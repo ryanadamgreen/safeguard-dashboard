@@ -25,14 +25,16 @@ const SELECTED_HOME_KEY = "safeguard_selected_home_id";
 
 const supabase = createSupabaseBrowserClient();
 
-async function fetchStaffProfile(email: string): Promise<AuthUser | null> {
-  const { data: staff, error } = await supabase
-    .from("staff")
-    .select("id, full_name, email, job_title, role")
-    .eq("email", email)
-    .single();
-
-  if (error || !staff) return null;
+async function fetchStaffProfile(_email: string): Promise<AuthUser | null> {
+  // Fetch via API route which uses the service-role key — bypasses RLS entirely.
+  // This avoids the redirect loop caused by RLS blocking the anon client from
+  // reading the staff row even when a valid session exists.
+  const res = await fetch("/api/me");
+  if (!res.ok) {
+    console.error("[AuthProvider] /api/me returned", res.status);
+    return null;
+  }
+  const { staff } = await res.json();
 
   const role = mapDbRole(staff.role);
   let homeIds: string[] = [];
