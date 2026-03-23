@@ -6,7 +6,7 @@
  * and executes it on the server.
  */
 
-import { randomInt, randomUUID } from "node:crypto";
+import { randomInt } from "node:crypto";
 import { createSupabaseServerClient } from "../supabase";
 
 /**
@@ -122,13 +122,23 @@ export async function inviteStaff(data: {
   home_ids: string[];
 }): Promise<{ id: string | null; error: string | null }> {
   const supabase = createSupabaseServerClient();
-  const staffId = randomUUID();
 
-  // Insert staff row — id must be supplied explicitly (no DB default)
+  // Step 1: create the auth user — their UUID becomes the staff.id
+  const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+    data.email,
+    { data: { full_name: data.full_name, role: data.role } }
+  );
+  if (inviteError) {
+    console.error("[inviteStaff] auth invite", inviteError.message);
+    return { id: null, error: inviteError.message };
+  }
+  const authUserId = inviteData.user.id;
+
+  // Step 2: insert staff row using the auth UUID so staff.id = auth.uid()
   const { data: staffRow, error: staffError } = await supabase
     .from("staff")
     .insert({
-      id: staffId,
+      id: authUserId,
       full_name: data.full_name,
       email: data.email,
       role: data.role,
@@ -140,27 +150,23 @@ export async function inviteStaff(data: {
 
   if (staffError) {
     console.error("[inviteStaff] staff insert", staffError.message);
+    // Cleanup: delete the auth user so the invite doesn't dangle
+    await supabase.auth.admin.deleteUser(authUserId);
     return { id: null, error: staffError.message };
   }
 
-  // Insert staff_homes rows
+  // Step 3: insert staff_homes rows
   if (data.home_ids.length > 0) {
     const { error: homesError } = await supabase.from("staff_homes").insert(
       data.home_ids.map((home_id) => ({ staff_id: staffRow.id, home_id }))
     );
     if (homesError) {
       console.error("[inviteStaff] staff_homes insert", homesError.message);
-      return { id: staffRow.id, error: homesError.message };
+      // Cleanup: remove staff row and auth user
+      await supabase.from("staff").delete().eq("id", staffRow.id);
+      await supabase.auth.admin.deleteUser(authUserId);
+      return { id: null, error: homesError.message };
     }
-  }
-
-  // Send Supabase auth invite
-  const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(data.email, {
-    data: { full_name: data.full_name, role: data.role },
-  });
-  if (inviteError) {
-    console.error("[inviteStaff] auth invite", inviteError.message);
-    // Non-fatal — staff row created, invite email failed
   }
 
   return { id: staffRow.id, error: null };
