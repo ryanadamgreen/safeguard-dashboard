@@ -1754,7 +1754,7 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
 
                 {assignedDevices.map((device) => {
                   const effectiveStatus = deviceStatuses[device.dbId] ?? device.status;
-                  const cfg = deviceStatusConfig[effectiveStatus];
+                  const cfg = deviceStatusConfig[effectiveStatus as DeviceStatus] ?? deviceStatusConfig["offline"];
                   const hasTamper = !!tamperByDevice[device.dbId];
                   const hasWebBlock = !!hasWebRestrictions[device.dbId];
                   return (
