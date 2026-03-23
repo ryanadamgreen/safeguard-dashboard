@@ -304,30 +304,34 @@ export async function createDevice(
 
 /**
  * Poll for pairing completion.
- * Returns pairedAt (non-null when device has confirmed pairing)
- * and isExpired (true if expiry has passed and device never paired).
+ * isPaired is true when pairing_code has been cleared (set to null by /api/pair),
+ * which is the reliable indicator that the Android app has successfully paired.
+ * isExpired is true when the code expiry has passed and the device was never paired.
  */
 export async function checkPairingStatus(
   deviceId: string
-): Promise<{ pairedAt: string | null; isExpired: boolean; error: string | null }> {
+): Promise<{ isPaired: boolean; isExpired: boolean; error: string | null }> {
   const supabase = createSupabaseServerClient();
   const { data: row, error } = await supabase
     .from("devices")
-    .select("paired_at, pairing_expires_at")
+    .select("pairing_code, paired_at, pairing_expires_at")
     .eq("id", deviceId)
     .single();
 
   if (error) {
     console.error("[checkPairingStatus]", error.message);
-    return { pairedAt: null, isExpired: false, error: error.message };
+    return { isPaired: false, isExpired: false, error: error.message };
   }
 
+  // Primary indicator: pairing_code cleared by /api/pair on success
+  const isPaired = row.pairing_code === null && row.paired_at !== null;
+
   const isExpired =
-    !row.paired_at &&
+    !isPaired &&
     row.pairing_expires_at != null &&
     new Date(row.pairing_expires_at) < new Date();
 
-  return { pairedAt: row.paired_at ?? null, isExpired, error: null };
+  return { isPaired, isExpired, error: null };
 }
 
 /**

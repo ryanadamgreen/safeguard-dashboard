@@ -1038,7 +1038,7 @@ type DeviceType = "Phone" | "Tablet";
 type Ownership = "org" | "personal";
 type AddDeviceStep = "details" | "pairing";
 
-function AddDeviceModal({ child, onClose }: { child: UiChild; onClose: () => void }) {
+function AddDeviceModal({ child, onClose, onPaired }: { child: UiChild; onClose: () => void; onPaired: () => void }) {
   const [step, setStep] = useState<AddDeviceStep>("details");
 
   // Step 1 — Device Details
@@ -1075,7 +1075,7 @@ function AddDeviceModal({ child, onClose }: { child: UiChild; onClose: () => voi
     if (step !== "pairing" || connected || secondsLeft === 0 || !deviceDbId) return;
     const id = setInterval(async () => {
       const result = await checkPairingStatus(deviceDbId);
-      if (result.pairedAt) {
+      if (result.isPaired) {
         setConnected(true);
       } else if (result.isExpired) {
         setSecondsLeft(0);
@@ -1083,6 +1083,16 @@ function AddDeviceModal({ child, onClose }: { child: UiChild; onClose: () => voi
     }, 3000);
     return () => clearInterval(id);
   }, [step, connected, secondsLeft, deviceDbId]);
+
+  // Auto-close 2 seconds after successful pairing and refresh the list
+  useEffect(() => {
+    if (!connected) return;
+    const id = setTimeout(() => {
+      onPaired();
+      onClose();
+    }, 2000);
+    return () => clearTimeout(id);
+  }, [connected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleNext() {
     const resolvedName = deviceName.trim() || `${manufacturer} ${deviceType}`;
@@ -1873,7 +1883,7 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
           }}
         />
       )}
-      {addDeviceFor   && <AddDeviceModal child={addDeviceFor} onClose={() => setAddDeviceFor(null)} />}
+      {addDeviceFor   && <AddDeviceModal child={addDeviceFor} onClose={() => setAddDeviceFor(null)} onPaired={() => { setAddDeviceFor(null); router.refresh(); }} />}
       {editProfileFor && <EditProfilePanel child={editProfileFor} onClose={() => setEditProfileFor(null)} keyWorkerOptions={keyWorkerOptions} />}
       {controlDevice  && (
         <DeviceControlPanel
