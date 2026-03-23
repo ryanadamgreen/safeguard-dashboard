@@ -83,8 +83,8 @@ export default function SetPasswordPage() {
         setLoading(false);
         return;
       }
-      // Password set — go to the main dashboard
-      window.location.replace("/admin");
+      // Password set — go to the role-based redirect page
+      window.location.replace("/dashboard");
     } catch {
       setError("An unexpected error occurred. Please try again.");
       setLoading(false);

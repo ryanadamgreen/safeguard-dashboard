@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "./AuthProvider";
+import { roleLabel } from "../lib/auth";
 
 const NAV = [
   {
@@ -128,7 +129,7 @@ export default function AdminSidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-slate-200 truncate">{user?.name ?? "—"}</p>
-            <p className="text-xs text-slate-500 truncate">Administrator</p>
+            <p className="text-xs text-slate-500 truncate">{user ? roleLabel(user.role) : "—"}</p>
           </div>
           <button
             onClick={handleSignOut}

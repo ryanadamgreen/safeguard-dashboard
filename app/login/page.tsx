@@ -73,8 +73,8 @@ export default function LoginPage() {
         return;
       }
       console.log("[login] signInWithPassword success, user:", data.user?.email);
-      console.log("[login] redirecting to /admin...");
-      window.location.replace("/admin");
+      console.log("[login] redirecting to /dashboard...");
+      window.location.replace("/dashboard");
     } catch {
       setError("An unexpected error occurred. Please try again.");
       setLoading(false);
