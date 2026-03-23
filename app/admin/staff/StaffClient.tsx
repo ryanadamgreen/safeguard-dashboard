@@ -72,6 +72,8 @@ function AddStaffModal({
     name: "", email: "", jobTitle: "Support Worker", role: "home_staff", homeIds: [],
   });
   const [errors, setErrors] = useState<{ name?: string; email?: string; homeIds?: string }>({});
+  const [submitError, setSubmitError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   function toggleHome(id: string) {
     setForm((f) => ({
@@ -87,26 +89,37 @@ function AddStaffModal({
     if (form.homeIds.length === 0) e.homeIds = "Assign at least one home";
     if (Object.keys(e).length > 0) { setErrors(e); return; }
 
-    const result = await inviteStaff({
-      full_name: form.name.trim(),
-      email: form.email.trim(),
-      role: form.role,
-      job_title: form.role === "home_staff" ? (form.jobTitle as string) : undefined,
-      home_ids: form.homeIds,
-    });
-    if (result.error) return; // could show error
-    const newMember: DbStaff = {
-      id: result.id ?? crypto.randomUUID(),
-      full_name: form.name.trim(),
-      email: form.email.trim(),
-      role: form.role,
-      job_title: form.role === "home_staff" ? form.jobTitle as string : null,
-      organisation_id: null,
-      created_at: new Date().toISOString(),
-      staff_homes: form.homeIds.map(home_id => ({ home_id })),
-    };
-    onAdd(newMember);
-    onClose();
+    setSubmitError("");
+    setLoading(true);
+    try {
+      const result = await inviteStaff({
+        full_name: form.name.trim(),
+        email: form.email.trim(),
+        role: form.role,
+        job_title: form.role === "home_staff" ? (form.jobTitle as string) : undefined,
+        home_ids: form.homeIds,
+      });
+      if (result.error) {
+        setSubmitError(result.error);
+        return;
+      }
+      const newMember: DbStaff = {
+        id: result.id ?? crypto.randomUUID(),
+        full_name: form.name.trim(),
+        email: form.email.trim(),
+        role: form.role,
+        job_title: form.role === "home_staff" ? form.jobTitle as string : null,
+        organisation_id: null,
+        created_at: new Date().toISOString(),
+        staff_homes: form.homeIds.map(home_id => ({ home_id })),
+      };
+      onAdd(newMember);
+      onClose();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -201,12 +214,23 @@ function AddStaffModal({
           </div>
         </div>
 
+        {submitError && (
+          <div className="mx-6 mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+            {submitError}
+          </div>
+        )}
         <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+          <button onClick={onClose} disabled={loading} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50">
             Cancel
           </button>
-          <button onClick={handleSubmit} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
-            Create Account
+          <button onClick={handleSubmit} disabled={loading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center gap-2">
+            {loading && (
+              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            )}
+            {loading ? "Creating…" : "Create Account"}
           </button>
         </div>
       </div>

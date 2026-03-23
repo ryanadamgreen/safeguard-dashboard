@@ -28,11 +28,13 @@ function AddHomeModal({
   dbOrgs,
 }: {
   onClose: () => void;
-  onAdd: (form: AddHomeForm) => void;
+  onAdd: (form: AddHomeForm) => Promise<{ error?: string }>;
   dbOrgs: DbOrganisation[];
 }) {
   const [form, setForm] = useState<AddHomeForm>(emptyForm);
   const [errors, setErrors] = useState<Partial<Record<keyof AddHomeForm, string>>>({});
+  const [submitError, setSubmitError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   function validate() {
     const e: Partial<Record<keyof AddHomeForm, string>> = {};
@@ -44,11 +46,21 @@ function AddHomeModal({
     return e;
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
-    onAdd(form);
-    onClose();
+    setSubmitError("");
+    setLoading(true);
+    try {
+      const result = await onAdd(form);
+      if (result?.error) {
+        setSubmitError(result.error);
+      } else {
+        onClose();
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   const inputClass = (key: keyof AddHomeForm) =>
@@ -138,12 +150,23 @@ function AddHomeModal({
           </div>
         </div>
 
+        {submitError && (
+          <div className="mx-6 mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">
+            {submitError}
+          </div>
+        )}
         <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+          <button onClick={onClose} disabled={loading} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50">
             Cancel
           </button>
-          <button onClick={handleSubmit} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
-            Add Home
+          <button onClick={handleSubmit} disabled={loading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center gap-2">
+            {loading && (
+              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            )}
+            {loading ? "Adding…" : "Add Home"}
           </button>
         </div>
       </div>
@@ -194,24 +217,8 @@ export default function HomesClient({ dbHomes, dbOrgs }: Props) {
     }
   }
 
-  function addHome(form: AddHomeForm) {
-    // Optimistic update
-    const tempId = crypto.randomUUID();
-    const newRow: DbHome = {
-      id: tempId,
-      organisation_id: form.organisationId,
-      name: form.name,
-      sc_urn: form.sc_urn || null,
-      address: form.address || null,
-      phone: form.phone || null,
-      email: form.email || null,
-      responsible_individual: form.responsible_individual || null,
-      status: "active",
-      created_at: new Date().toISOString(),
-    };
-    setRows((prev) => [...prev, newRow]);
-    // Persist in background
-    createHome({
+  async function addHome(form: AddHomeForm): Promise<{ error?: string }> {
+    const result = await createHome({
       name: form.name,
       organisation_id: form.organisationId,
       sc_urn: form.sc_urn || undefined,
@@ -220,6 +227,28 @@ export default function HomesClient({ dbHomes, dbOrgs }: Props) {
       email: form.email || undefined,
       responsible_individual: form.responsible_individual || undefined,
     });
+
+    if (result.error || !result.id) {
+      return { error: result.error ?? "Failed to create home. Please try again." };
+    }
+
+    setRows((prev) => [
+      ...prev,
+      {
+        id: result.id!,
+        organisation_id: form.organisationId,
+        name: form.name,
+        sc_urn: form.sc_urn || null,
+        address: form.address || null,
+        phone: form.phone || null,
+        email: form.email || null,
+        responsible_individual: form.responsible_individual || null,
+        status: "active",
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    return {};
   }
 
   const filteredRows = rows.filter((h) => {
