@@ -7,7 +7,20 @@
  */
 
 import { randomInt } from "node:crypto";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 import { createSupabaseServerClient } from "../supabase";
+
+async function getCallerUserId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const client = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} } }
+  );
+  const { data: { user } } = await client.auth.getUser();
+  return user?.id ?? null;
+}
 
 /**
  * Mark an alert as resolved.
@@ -333,6 +346,114 @@ export async function expirePairingCode(
 
   if (error) {
     console.error("[expirePairingCode]", error.message);
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
+// ─── Report actions ───────────────────────────────────────────────────────────
+
+const REPORT_TYPE_LABELS: Record<string, string> = {
+  safeguarding_summary: "Safeguarding Summary",
+  critical_incident:    "Critical Incident",
+  monthly_overview:     "Monthly Overview",
+};
+
+export async function createReport(data: {
+  type: string;
+  date_range_start: string;
+  date_range_end: string;
+  home_id: string;
+  children_included: string[] | null;
+}): Promise<{ id: string | null; error: string | null }> {
+  try {
+    const userId = await getCallerUserId();
+    if (!userId) return { id: null, error: "Not authenticated" };
+
+    const start = new Date(data.date_range_start).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    const end   = new Date(data.date_range_end).toLocaleDateString("en-GB",   { day: "numeric", month: "short", year: "numeric" });
+    const title = `${REPORT_TYPE_LABELS[data.type] ?? data.type} — ${start} to ${end}`;
+
+    const supabase = createSupabaseServerClient();
+    const { data: row, error } = await supabase
+      .from("reports")
+      .insert({
+        title,
+        type:              data.type,
+        date_range_start:  data.date_range_start,
+        date_range_end:    data.date_range_end,
+        home_id:           data.home_id,
+        generated_by:      userId,
+        children_included: data.children_included,
+        status:            "pending",
+      })
+      .select("id, title, type, status, generated_at, date_range_start, date_range_end, home_id, generated_by, children_included, file_url, created_at")
+      .single();
+
+    if (error) {
+      console.error("[createReport]", error.message);
+      return { id: null, error: error.message };
+    }
+    return { id: row.id, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[createReport] unexpected:", message);
+    return { id: null, error: `Unexpected error: ${message}` };
+  }
+}
+
+export async function createReportSchedule(data: {
+  home_id: string;
+  type: string;
+  frequency: "weekly" | "monthly";
+  recipients: string[];
+}): Promise<{ id: string | null; error: string | null }> {
+  try {
+    const userId = await getCallerUserId();
+    if (!userId) return { id: null, error: "Not authenticated" };
+
+    const now = new Date();
+    let next_run_at: Date;
+    if (data.frequency === "weekly") {
+      const daysUntilMonday = ((8 - now.getDay()) % 7) || 7;
+      next_run_at = new Date(now);
+      next_run_at.setDate(now.getDate() + daysUntilMonday);
+      next_run_at.setHours(6, 0, 0, 0);
+    } else {
+      next_run_at = new Date(now.getFullYear(), now.getMonth() + 1, 1, 6, 0, 0);
+    }
+
+    const supabase = createSupabaseServerClient();
+    const { data: row, error } = await supabase
+      .from("report_schedules")
+      .insert({
+        home_id:     data.home_id,
+        type:        data.type,
+        frequency:   data.frequency,
+        recipients:  data.recipients,
+        created_by:  userId,
+        next_run_at: next_run_at.toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("[createReportSchedule]", error.message);
+      return { id: null, error: error.message };
+    }
+    return { id: row.id, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[createReportSchedule] unexpected:", message);
+    return { id: null, error: `Unexpected error: ${message}` };
+  }
+}
+
+export async function deleteReportSchedule(id: string): Promise<{ error: string | null }> {
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase.from("report_schedules").delete().eq("id", id);
+  if (error) {
+    console.error("[deleteReportSchedule]", error.message);
     return { error: error.message };
   }
   return { error: null };

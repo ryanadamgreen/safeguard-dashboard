@@ -3,7 +3,11 @@ export const dynamic = "force-dynamic";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createSupabaseServerClient } from "../../lib/supabase";
-import { getReports } from "../../lib/supabase/queries";
+import {
+  getReports,
+  getReportSchedules,
+  getChildrenForHomes,
+} from "../../lib/supabase/queries";
 import ReportsClient from "./ReportsClient";
 
 export default async function ReportsPage() {
@@ -17,15 +21,40 @@ export default async function ReportsPage() {
   const { data: { user } } = await anonClient.auth.getUser();
 
   let homeIds: string[] = [];
+  let homes: { id: string; name: string }[] = [];
+
   if (user?.id) {
     const serviceClient = createSupabaseServerClient();
+
     const { data: staffHomes } = await serviceClient
       .from("staff_homes")
-      .select("home_id")
+      .select("home_id, homes(id, name)")
       .eq("staff_id", user.id);
-    homeIds = (staffHomes ?? []).map((sh: { home_id: string }) => sh.home_id);
+
+    if (staffHomes) {
+      for (const sh of staffHomes) {
+        const raw = sh.homes;
+        const h = (Array.isArray(raw) ? raw[0] : raw) as { id: string; name: string } | null;
+        if (h) {
+          homeIds.push(h.id);
+          homes.push({ id: h.id, name: h.name });
+        }
+      }
+    }
   }
 
-  const reports = await getReports(homeIds);
-  return <ReportsClient reports={reports} />;
+  const [reports, schedules, children] = await Promise.all([
+    getReports(homeIds),
+    getReportSchedules(homeIds),
+    getChildrenForHomes(homeIds),
+  ]);
+
+  return (
+    <ReportsClient
+      reports={reports}
+      schedules={schedules}
+      children={children}
+      homes={homes}
+    />
+  );
 }
