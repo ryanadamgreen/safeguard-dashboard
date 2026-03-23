@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getChildren, getAlerts, getStaff } from "../../lib/supabase/queries";
 import ChildrenClient from "./ChildrenClient";
 

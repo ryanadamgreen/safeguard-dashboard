@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../components/AuthProvider";
 import type { DbChild, DbAlert, DbStaff, DbDevice } from "../../lib/supabase/queries";
 import type { DeviceStatus } from "../../lib/types";
-import { createDevice, checkPairingStatus, expirePairingCode } from "../../lib/supabase/actions";
+import { createDevice, checkPairingStatus, expirePairingCode, createChild } from "../../lib/supabase/actions";
 
 // ── UI Types ──────────────────────────────────────────────────────────────────
 
@@ -1326,21 +1327,61 @@ function AddDeviceModal({ child, onClose }: { child: UiChild; onClose: () => voi
 
 // ── Add Child Modal ───────────────────────────────────────────────────────────
 
-function AddChildModal({ onClose, keyWorkerOptions }: { onClose: () => void; keyWorkerOptions: string[] }) {
+function AddChildModal({ homeId, onClose, onCreated, keyWorkerOptions }: {
+  homeId: string | null;
+  onClose: () => void;
+  onCreated: (child: DbChild) => void;
+  keyWorkerOptions: string[];
+}) {
   const [form, setForm] = useState({
     initials: "",
     age: "",
     keyWorker: keyWorkerOptions[0] ?? "",
     notes: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
 
   function set(key: string, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onClose();
+    setError("");
+
+    if (!homeId) {
+      setError("No home selected. Please select a home before adding a child.");
+      return;
+    }
+
+    setLoading(true);
+    const result = await createChild({
+      initials:   form.initials,
+      age:        parseInt(form.age, 10),
+      key_worker: form.keyWorker,
+      notes:      form.notes || null,
+      home_id:    homeId,
+    });
+    setLoading(false);
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    // Build a minimal DbChild for the optimistic list update
+    const newChild: DbChild = {
+      id:         result.id!,
+      home_id:    homeId,
+      initials:   form.initials.trim().toUpperCase(),
+      age:        parseInt(form.age, 10),
+      key_worker: form.keyWorker,
+      notes:      form.notes || null,
+      created_at: new Date().toISOString(),
+      devices:    [],
+    };
+    onCreated(newChild);
   }
 
   const fieldClass = "w-full px-3 py-2 text-sm text-slate-700 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white";
@@ -1421,19 +1462,27 @@ function AddChildModal({ onClose, keyWorkerOptions }: { onClose: () => void; key
             </div>
           </div>
 
+          {error && (
+            <div className="mx-6 mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+              {error}
+            </div>
+          )}
+
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 flex-shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              disabled={loading}
+              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={loading}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Add Child
+              {loading ? "Adding…" : "Add Child"}
             </button>
           </div>
         </form>
@@ -1553,6 +1602,8 @@ interface Props {
 
 export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props) {
   const { user, selectedHomeId } = useAuth();
+  const router = useRouter();
+  const [localChildren, setLocalChildren] = useState<DbChild[]>(dbChildren);
   const [addChildOpen,    setAddChildOpen]    = useState(false);
   const [addDeviceFor,    setAddDeviceFor]    = useState<UiChild | null>(null);
   const [editProfileFor,  setEditProfileFor]  = useState<UiChild | null>(null);
@@ -1573,7 +1624,7 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
   }
 
   const homeId = selectedHomeId ?? user?.homeIds?.[0] ?? null;
-  const allUiChildren = dbChildren.map(mapDbChild);
+  const allUiChildren = localChildren.map(mapDbChild);
   const homeChildren = allUiChildren.filter((c) => homeId !== null && c.homeId === homeId);
 
   // Staff for key worker dropdown — filter to those assigned to this home
@@ -1759,7 +1810,18 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
       </main>
 
       {/* Modals & panels */}
-      {addChildOpen   && <AddChildModal onClose={() => setAddChildOpen(false)} keyWorkerOptions={keyWorkerOptions} />}
+      {addChildOpen && (
+        <AddChildModal
+          homeId={homeId}
+          keyWorkerOptions={keyWorkerOptions}
+          onClose={() => setAddChildOpen(false)}
+          onCreated={(child) => {
+            setLocalChildren((prev) => [...prev, child]);
+            setAddChildOpen(false);
+            router.refresh();
+          }}
+        />
+      )}
       {addDeviceFor   && <AddDeviceModal child={addDeviceFor} onClose={() => setAddDeviceFor(null)} />}
       {editProfileFor && <EditProfilePanel child={editProfileFor} onClose={() => setEditProfileFor(null)} keyWorkerOptions={keyWorkerOptions} />}
       {controlDevice  && (

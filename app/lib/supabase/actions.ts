@@ -351,6 +351,41 @@ export async function expirePairingCode(
   return { error: null };
 }
 
+// ─── Child actions ────────────────────────────────────────────────────────────
+
+export async function createChild(data: {
+  initials: string;
+  age: number;
+  key_worker: string;
+  notes: string | null;
+  home_id: string;
+}): Promise<{ id: string | null; error: string | null }> {
+  try {
+    const supabase = createSupabaseServerClient();
+    const { data: row, error } = await supabase
+      .from("children")
+      .insert({
+        initials:   data.initials.trim().toUpperCase(),
+        age:        data.age,
+        key_worker: data.key_worker,
+        notes:      data.notes || null,
+        home_id:    data.home_id,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("[createChild]", error.message);
+      return { id: null, error: error.message };
+    }
+    return { id: row.id, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[createChild] unexpected:", message);
+    return { id: null, error: `Unexpected error: ${message}` };
+  }
+}
+
 // ─── Report actions ───────────────────────────────────────────────────────────
 
 const REPORT_TYPE_LABELS: Record<string, string> = {
