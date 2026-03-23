@@ -6,7 +6,7 @@
  * and executes it on the server.
  */
 
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { createSupabaseServerClient } from "../supabase";
 
 /**
@@ -122,11 +122,13 @@ export async function inviteStaff(data: {
   home_ids: string[];
 }): Promise<{ id: string | null; error: string | null }> {
   const supabase = createSupabaseServerClient();
+  const staffId = randomUUID();
 
-  // Insert staff row
+  // Insert staff row — id must be supplied explicitly (no DB default)
   const { data: staffRow, error: staffError } = await supabase
     .from("staff")
     .insert({
+      id: staffId,
       full_name: data.full_name,
       email: data.email,
       role: data.role,
