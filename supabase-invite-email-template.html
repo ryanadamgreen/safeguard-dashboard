@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>You've been invited to SafeGuard</title>
+  <!--
+    SUPABASE INVITE EMAIL TEMPLATE
+    ================================
+    Subject line: You've been invited to join SafeGuard
+
+    To apply this template:
+    1. Go to Supabase Dashboard → Authentication → Email Templates
+    2. Select "Invite user"
+    3. Replace the subject with: You've been invited to join SafeGuard
+    4. Paste the <body> contents (everything inside <body>…</body>) into the HTML editor
+       — Supabase wraps it in its own boilerplate so only paste the inner content,
+         or paste the full HTML if using a custom SMTP provider that accepts full templates.
+    5. Keep {{ .ConfirmationURL }} exactly as-is — Supabase replaces it with the real link.
+  -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f1f5f9;
+      color: #1e293b;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    }
+    /* ── Header ── */
+    .header {
+      background-color: #1a56db;
+      padding: 28px 40px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .header-logo-text {
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    /* ── Body ── */
+    .body {
+      padding: 40px 40px 32px;
+    }
+    .body h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+    .body p {
+      font-size: 15px;
+      color: #475569;
+      line-height: 1.65;
+      margin-bottom: 16px;
+    }
+    /* ── CTA button ── */
+    .cta-wrap {
+      margin: 28px 0 24px;
+      text-align: center;
+    }
+    .cta-button {
+      display: inline-block;
+      background-color: #1a56db;
+      color: #ffffff !important;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 600;
+      padding: 14px 32px;
+      border-radius: 8px;
+      letter-spacing: 0.1px;
+    }
+    .expiry {
+      font-size: 13px;
+      color: #94a3b8;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    /* ── Warning box ── */
+    .warning {
+      background-color: #fefce8;
+      border: 1px solid #fde047;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #713f12;
+      line-height: 1.55;
+      margin-bottom: 8px;
+    }
+    /* ── Footer ── */
+    .footer {
+      background-color: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      padding: 20px 40px;
+      text-align: center;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+    .footer strong {
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-icon">
+        <!-- Shield icon (inline SVG so it renders in all email clients) -->
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+             stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944
+                   a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9
+                   c0 5.591 3.824 10.29 9 11.622
+                   5.176-1.332 9-6.03 9-11.622
+                   0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+      </div>
+      <span class="header-logo-text">SafeGuard</span>
+    </div>
+
+    <!-- Body -->
+    <div class="body">
+      <h1>You've been invited to SafeGuard</h1>
+
+      <p>
+        You've been invited to join the <strong>SafeGuard</strong> residential monitoring
+        platform. SafeGuard helps children's residential homes manage safeguarding alerts,
+        device monitoring, and compliance reporting in real time.
+      </p>
+
+      <p>
+        Click the button below to accept your invitation and set up your account.
+        You'll be asked to create a password before you can sign in.
+      </p>
+
+      <div class="cta-wrap">
+        <a href="{{ .ConfirmationURL }}" class="cta-button">Accept Invitation</a>
+      </div>
+
+      <p class="expiry">This invitation expires in 24 hours.</p>
+
+      <div class="warning">
+        <strong>Didn't expect this email?</strong> If you were not expecting an invitation
+        to SafeGuard, you can safely ignore this email. No account will be created without
+        your action.
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <strong>SafeGuard</strong> — Children's Residential Monitoring Platform<br />
+      This is an automated message. Please do not reply to this email.
+    </div>
+
+  </div>
+</body>
+</html>

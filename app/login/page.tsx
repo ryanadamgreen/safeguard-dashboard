@@ -12,7 +12,7 @@
  * and set a new password via the recovery link.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabase";
 
 const supabase = createSupabaseBrowserClient();
@@ -22,6 +22,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // ── Invite-acceptance flow ───────────────────────────────────────────────
+  // When a staff member clicks their invite email, Supabase redirects them
+  // to /login with #access_token=...&type=invite in the hash.
+  // We detect this, let the browser client parse the session, then send
+  // them to /set-password to choose a password.
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.includes("access_token") || !hash.includes("type=invite")) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        window.location.replace("/set-password");
+      }
+    });
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

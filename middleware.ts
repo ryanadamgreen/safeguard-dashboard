@@ -34,6 +34,7 @@ export async function middleware(request: NextRequest) {
   if (
     !user &&
     !pathname.startsWith("/login") &&
+    !pathname.startsWith("/set-password") &&
     !pathname.startsWith("/billing/success") &&
     !pathname.startsWith("/api/")
   ) {
