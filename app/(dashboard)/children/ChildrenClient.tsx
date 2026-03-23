@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../components/AuthProvider";
 import type { DbChild, DbAlert, DbStaff, DbDevice } from "../../lib/supabase/queries";
 import type { DeviceStatus } from "../../lib/types";
-import { createDevice, checkPairingStatus, expirePairingCode, createChild } from "../../lib/supabase/actions";
+import { createDevice, checkPairingStatus, expirePairingCode, createChild, deleteDevice } from "../../lib/supabase/actions";
 
 // ── UI Types ──────────────────────────────────────────────────────────────────
 
@@ -326,6 +326,7 @@ function DeviceControlPanel({
   onClose,
   onSetStatus,
   onSetWebRestrictions,
+  onRemoved,
 }: {
   device: UiDevice;
   status: DeviceStatus;
@@ -333,8 +334,12 @@ function DeviceControlPanel({
   onClose: () => void;
   onSetStatus: (id: string, status: DeviceStatus) => void;
   onSetWebRestrictions: (id: string, hasRestrictions: boolean) => void;
+  onRemoved: (deviceDbId: string) => void;
 }) {
   const [repairOpen, setRepairOpen] = useState(false);
+  const [removeConfirm, setRemoveConfirm] = useState(false);
+  const [removeLoading, setRemoveLoading] = useState(false);
+  const [removeError, setRemoveError] = useState("");
 
   // Schedule
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
@@ -966,6 +971,52 @@ function DeviceControlPanel({
               )}
               {locationLoading ? "Requesting..." : locationUpdated ? "Location Updated ✓" : "Request Location Update"}
             </button>
+          </div>
+
+          {/* ── REMOVE DEVICE ── */}
+          <div className="px-4 pb-4 pt-2">
+            {!removeConfirm ? (
+              <button
+                onClick={() => setRemoveConfirm(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl hover:bg-red-100 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+                Remove Device
+              </button>
+            ) : (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-2">
+                <p className="text-xs text-red-700 font-medium text-center">
+                  Remove <span className="font-bold">{device.id}</span> from this child&apos;s profile? This cannot be undone.
+                </p>
+                {removeError && <p className="text-xs text-red-600 text-center">{removeError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setRemoveConfirm(false); setRemoveError(""); }}
+                    disabled={removeLoading}
+                    className="flex-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setRemoveLoading(true);
+                      const { error } = await deleteDevice(device.dbId);
+                      setRemoveLoading(false);
+                      if (error) { setRemoveError(error); return; }
+                      onRemoved(device.dbId);
+                      onClose();
+                    }}
+                    disabled={removeLoading}
+                    className="flex-1 px-3 py-1.5 text-xs font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {removeLoading && <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+                    {removeLoading ? "Removing…" : "Yes, Remove"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
@@ -1832,6 +1883,13 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
           onClose={() => setControlDeviceId(null)}
           onSetStatus={handleSetStatus}
           onSetWebRestrictions={handleSetWebRestrictions}
+          onRemoved={(deviceDbId) => {
+            setLocalChildren((prev) =>
+              prev.map((c) => ({ ...c, devices: c.devices.filter((d) => d.id !== deviceDbId) }))
+            );
+            setControlDeviceId(null);
+            router.refresh();
+          }}
         />
       )}
     </div>

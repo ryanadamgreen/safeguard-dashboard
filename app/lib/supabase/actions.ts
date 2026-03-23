@@ -351,6 +351,21 @@ export async function expirePairingCode(
   return { error: null };
 }
 
+/**
+ * Permanently delete a device record (unpair).
+ */
+export async function deleteDevice(
+  deviceId: string
+): Promise<{ error: string | null }> {
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase.from("devices").delete().eq("id", deviceId);
+  if (error) {
+    console.error("[deleteDevice]", error.message);
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
 // ─── Child actions ────────────────────────────────────────────────────────────
 
 export async function createChild(data: {
