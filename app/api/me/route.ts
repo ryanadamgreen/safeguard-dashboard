@@ -56,5 +56,7 @@ export async function GET(request: Request) {
   }
 
   console.log("[/api/me] returning staff:", { id: staff.id, full_name: staff.full_name, email: staff.email, role: staff.role });
-  return NextResponse.json({ staff });
+  return NextResponse.json({ staff }, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }

@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../components/AuthProvider";
+import { roleLabel } from "../../lib/auth";
+import { updateStaff } from "../../lib/supabase/actions";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -63,7 +65,7 @@ function Divider() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminSettingsPage() {
-  const { setUser } = useAuth();
+  const { user, setUser } = useAuth();
   const router = useRouter();
 
   // ── Session inactivity ──────────────────────────────────────────────────────
@@ -105,11 +107,31 @@ export default function AdminSettingsPage() {
   }, [setUser, router]);
 
   // ── Section 1: Personal Details ────────────────────────────────────────────
-  const [name, setName]         = useState("Alex Turner");
-  const [email, setEmail]       = useState("admin@safeguard.org");
+  // null = not yet edited by the user; fall through to user.name / user.email
+  const [name, setName]         = useState<string | null>(null);
+  const [email, setEmail]       = useState<string | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
-  function handleSaveProfile() {
+  // Derive the displayed value: local edit overrides auth data
+  const displayName  = name  ?? user?.name  ?? "";
+  const displayEmail = email ?? user?.email ?? "";
+
+  async function handleSaveProfile() {
+    if (!user) return;
+    setProfileError("");
+    const { error } = await updateStaff(user.id, {
+      full_name: displayName.trim(),
+      email: displayEmail.trim(),
+    });
+    if (error) {
+      setProfileError(error);
+      return;
+    }
+    setUser({ ...user, name: displayName.trim(), email: displayEmail.trim() });
+    // Reset local edits so inputs reflect the updated auth object
+    setName(null);
+    setEmail(null);
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
   }
@@ -230,7 +252,7 @@ export default function AdminSettingsPage() {
             <div>
               <Label>Full Name</Label>
               <input
-                type="text" value={name}
+                type="text" value={displayName}
                 onChange={(e) => setName(e.target.value)}
                 className={inputClass}
               />
@@ -238,7 +260,7 @@ export default function AdminSettingsPage() {
             <div>
               <Label>Email Address</Label>
               <input
-                type="email" value={email}
+                type="email" value={displayEmail}
                 onChange={(e) => setEmail(e.target.value)}
                 className={inputClass}
               />
@@ -246,12 +268,14 @@ export default function AdminSettingsPage() {
             </div>
             <div>
               <Label>Role</Label>
-              <div className={readOnlyClass}>Administrator</div>
+              <div className={readOnlyClass}>{user ? roleLabel(user.role) : "—"}</div>
             </div>
+            {profileError && <p className="text-xs text-red-500">{profileError}</p>}
             <div className="flex justify-end pt-1">
               <button
                 onClick={handleSaveProfile}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={!user}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
                 {profileSaved ? "Saved ✓" : "Save Changes"}
               </button>
@@ -313,7 +337,7 @@ export default function AdminSettingsPage() {
                 </div>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   Two-factor authentication is mandatory on your account. A verification code is sent to{" "}
-                  <span className="font-medium text-slate-600">{maskEmail(email)}</span>{" "}
+                  <span className="font-medium text-slate-600">{maskEmail(displayEmail)}</span>{" "}
                   each time you sign in.
                 </p>
               </div>

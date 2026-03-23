@@ -29,7 +29,7 @@ async function fetchStaffProfile(_email: string): Promise<AuthUser | null> {
   // Fetch via API route which uses the service-role key — bypasses RLS entirely.
   // This avoids the redirect loop caused by RLS blocking the anon client from
   // reading the staff row even when a valid session exists.
-  const res = await fetch("/api/me");
+  const res = await fetch("/api/me", { cache: "no-store" });
   if (!res.ok) {
     console.error("[AuthProvider] /api/me returned", res.status);
     return null;
