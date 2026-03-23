@@ -126,6 +126,21 @@ export interface DbAlert {
   } | null;
 }
 
+export interface DbReport {
+  id: string;
+  title: string;
+  type: string;
+  generated_at: string;
+  date_range_start: string | null;
+  date_range_end: string | null;
+  home_id: string;
+  generated_by: string | null;
+  file_url: string | null;
+  created_at: string;
+  homes: { name: string } | null;
+  staff: { full_name: string } | null;
+}
+
 // ─── Query functions ──────────────────────────────────────────────────────────
 
 /**
@@ -236,6 +251,25 @@ export async function getAlerts(limit = 50): Promise<DbAlert[]> {
     return [];
   }
   return data as DbAlert[];
+}
+
+/**
+ * Reports for a given set of home IDs, newest first.
+ */
+export async function getReports(homeIds: string[]): Promise<DbReport[]> {
+  if (homeIds.length === 0) return [];
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("reports")
+    .select("*, homes(name), staff(full_name)")
+    .in("home_id", homeIds)
+    .order("generated_at", { ascending: false });
+
+  if (error) {
+    console.error("[getReports]", error.message);
+    return [];
+  }
+  return data as DbReport[];
 }
 
 /**
