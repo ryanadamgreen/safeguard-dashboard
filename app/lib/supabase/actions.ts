@@ -121,58 +121,80 @@ export async function inviteStaff(data: {
   organisation_id?: string;
   home_ids: string[];
 }): Promise<{ id: string | null; error: string | null }> {
-  const supabase = createSupabaseServerClient();
+  // Top-level try-catch so the action always returns {id, error} and never
+  // throws — an unhandled throw becomes Next.js's opaque "unexpected response"
+  // message on the client, hiding the real cause.
+  try {
+    const supabase = createSupabaseServerClient();
 
-  // Step 1: create the auth user — their UUID becomes the staff.id
-  const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-    data.email,
-    {
-      data: { full_name: data.full_name, role: data.role },
-      redirectTo: "https://safeguard-dashboard-five.vercel.app/set-password",
-    }
-  );
-  if (inviteError) {
-    console.error("[inviteStaff] auth invite", inviteError.message);
-    return { id: null, error: inviteError.message };
-  }
-  const authUserId = inviteData.user.id;
-
-  // Step 2: insert staff row using the auth UUID so staff.id = auth.uid()
-  const { data: staffRow, error: staffError } = await supabase
-    .from("staff")
-    .insert({
-      id: authUserId,
-      full_name: data.full_name,
-      email: data.email,
-      role: data.role,
-      job_title: data.job_title ?? null,
-      organisation_id: data.organisation_id ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (staffError) {
-    console.error("[inviteStaff] staff insert", staffError.message);
-    // Cleanup: delete the auth user so the invite doesn't dangle
-    await supabase.auth.admin.deleteUser(authUserId);
-    return { id: null, error: staffError.message };
-  }
-
-  // Step 3: insert staff_homes rows
-  if (data.home_ids.length > 0) {
-    const { error: homesError } = await supabase.from("staff_homes").insert(
-      data.home_ids.map((home_id) => ({ staff_id: staffRow.id, home_id }))
+    // Step 1: create the auth user — their UUID becomes the staff.id
+    const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+      data.email,
+      {
+        data: { full_name: data.full_name, role: data.role },
+        redirectTo: "https://safeguard-dashboard-five.vercel.app/set-password",
+      }
     );
-    if (homesError) {
-      console.error("[inviteStaff] staff_homes insert", homesError.message);
-      // Cleanup: remove staff row and auth user
-      await supabase.from("staff").delete().eq("id", staffRow.id);
-      await supabase.auth.admin.deleteUser(authUserId);
-      return { id: null, error: homesError.message };
+    if (inviteError) {
+      console.error("[inviteStaff] auth.admin.inviteUserByEmail failed:", {
+        message: inviteError.message,
+        status: inviteError.status,
+      });
+      return { id: null, error: inviteError.message };
     }
-  }
+    const authUserId = inviteData.user.id;
+    console.log("[inviteStaff] auth user created:", authUserId);
 
-  return { id: staffRow.id, error: null };
+    // Step 2: insert staff row using the auth UUID so staff.id = auth.uid()
+    const { data: staffRow, error: staffError } = await supabase
+      .from("staff")
+      .insert({
+        id: authUserId,
+        full_name: data.full_name,
+        email: data.email,
+        role: data.role,
+        job_title: data.job_title ?? null,
+        organisation_id: data.organisation_id ?? null,
+      })
+      .select("id")
+      .single();
+
+    if (staffError) {
+      console.error("[inviteStaff] staff insert failed:", {
+        message: staffError.message,
+        code: staffError.code,
+        details: staffError.details,
+        hint: staffError.hint,
+      });
+      await supabase.auth.admin.deleteUser(authUserId);
+      return { id: null, error: `Staff insert failed: ${staffError.message}` };
+    }
+    console.log("[inviteStaff] staff row created:", staffRow.id);
+
+    // Step 3: insert staff_homes rows
+    if (data.home_ids.length > 0) {
+      const { error: homesError } = await supabase.from("staff_homes").insert(
+        data.home_ids.map((home_id) => ({ staff_id: staffRow.id, home_id }))
+      );
+      if (homesError) {
+        console.error("[inviteStaff] staff_homes insert failed:", {
+          message: homesError.message,
+          code: homesError.code,
+          details: homesError.details,
+          hint: homesError.hint,
+        });
+        await supabase.from("staff").delete().eq("id", staffRow.id);
+        await supabase.auth.admin.deleteUser(authUserId);
+        return { id: null, error: `Home assignment failed: ${homesError.message}` };
+      }
+    }
+
+    return { id: staffRow.id, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[inviteStaff] unexpected exception:", message);
+    return { id: null, error: `Unexpected error: ${message}` };
+  }
 }
 
 export async function updateStaff(
