@@ -2,12 +2,13 @@
 
 /**
  * Set-password page.
- * Reached after a staff member accepts their invite email.
- * The session is already established (from the hash token handled in /login).
- * Calls supabase.auth.updateUser to persist the chosen password.
+ * Reached directly from the Supabase invite email (redirectTo points here).
+ * The URL hash contains #access_token=...&refresh_token=...&type=invite.
+ * We parse those tokens on mount, call setSession() to establish the session
+ * in cookies, then let the user choose a password via updateUser().
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabase";
 
 const supabase = createSupabaseBrowserClient();
@@ -16,7 +17,50 @@ export default function SetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
   const [error, setError] = useState("");
+  const sessionEstablished = useRef(false);
+
+  // ── Extract invite tokens from URL hash and establish session ────────────
+  useEffect(() => {
+    if (sessionEstablished.current) return;
+    sessionEstablished.current = true;
+
+    const hash = window.location.hash;
+    console.log("[set-password] hash:", hash);
+
+    const params = new URLSearchParams(hash.slice(1));
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+
+    if (!accessToken || !refreshToken) {
+      // No hash tokens — user may have navigated here directly after a prior
+      // session was already established; check if a session exists.
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          console.log("[set-password] existing session found");
+          setSessionReady(true);
+        } else {
+          setError("Invalid or expired invite link. Please ask an admin to resend the invitation.");
+        }
+      });
+      return;
+    }
+
+    supabase.auth
+      .setSession({ access_token: accessToken, refresh_token: refreshToken })
+      .then(({ data: { session }, error: sessionErr }) => {
+        if (sessionErr || !session) {
+          console.error("[set-password] setSession error:", sessionErr?.message);
+          setError("Invalid or expired invite link. Please ask an admin to resend the invitation.");
+          return;
+        }
+        console.log("[set-password] session established for", session.user.email);
+        // Clear the hash so tokens aren't visible in the URL bar
+        history.replaceState(null, "", window.location.pathname);
+        setSessionReady(true);
+      });
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -143,7 +187,7 @@ export default function SetPasswordPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !sessionReady}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors mt-2"
             >
               {loading ? (
