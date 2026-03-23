@@ -126,7 +126,10 @@ export async function inviteStaff(data: {
   // Step 1: create the auth user — their UUID becomes the staff.id
   const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
     data.email,
-    { data: { full_name: data.full_name, role: data.role } }
+    {
+      data: { full_name: data.full_name, role: data.role },
+      redirectTo: "https://safeguard-dashboard-five.vercel.app/set-password",
+    }
   );
   if (inviteError) {
     console.error("[inviteStaff] auth invite", inviteError.message);
