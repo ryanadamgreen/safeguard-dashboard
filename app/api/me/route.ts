@@ -47,11 +47,11 @@ export async function GET(request: Request) {
   const { data: staff, error: staffError } = await supabaseAdmin
     .from("staff")
     .select("id, full_name, email, job_title, role")
-    .eq("email", user.email)
+    .eq("id", user.id)
     .single();
 
   if (staffError || !staff) {
-    console.error("[/api/me] staff lookup failed:", staffError?.message, "email:", user.email);
+    console.error("[/api/me] staff lookup failed:", staffError?.message, "uid:", user.id);
     return NextResponse.json({ error: "Staff profile not found" }, { status: 404 });
   }
 
