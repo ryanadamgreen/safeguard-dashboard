@@ -55,5 +55,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Staff profile not found" }, { status: 404 });
   }
 
+  console.log("[/api/me] returning staff:", { id: staff.id, full_name: staff.full_name, email: staff.email, role: staff.role });
   return NextResponse.json({ staff });
 }
