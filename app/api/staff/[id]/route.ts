@@ -13,9 +13,9 @@ function createSupabaseAdmin() {
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const staffId = params.id;
+  const { id: staffId } = await params;
 
   // Validate the caller is authenticated
   const cookieStore = await cookies();
