@@ -25,17 +25,37 @@ export default function LoginPage() {
 
   // ── Invite-acceptance flow ───────────────────────────────────────────────
   // When a staff member clicks their invite email, Supabase redirects them
-  // to /login with #access_token=...&type=invite in the hash.
-  // We detect this, let the browser client parse the session, then send
-  // them to /set-password to choose a password.
+  // to /login with #access_token=...&refresh_token=...&type=invite in the hash.
+  // @supabase/ssr's createBrowserClient stores sessions in cookies, NOT in
+  // localStorage, so getSession() won't see hash tokens. We must parse the
+  // hash manually and call setSession() to persist them into cookies first.
   useEffect(() => {
     const hash = window.location.hash;
+    console.log("[invite] hash detected:", hash);
+
     if (!hash.includes("access_token") || !hash.includes("type=invite")) return;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        window.location.replace("/set-password");
-      }
-    });
+
+    const params = new URLSearchParams(hash.slice(1)); // strip leading '#'
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+
+    if (!accessToken || !refreshToken) {
+      console.warn("[invite] missing tokens in hash");
+      return;
+    }
+
+    supabase.auth
+      .setSession({ access_token: accessToken, refresh_token: refreshToken })
+      .then(({ data: { session }, error }) => {
+        if (error) {
+          console.error("[invite] setSession error:", error.message);
+          return;
+        }
+        if (session) {
+          console.log("[invite] session established, redirecting to /set-password");
+          window.location.replace("/set-password");
+        }
+      });
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
