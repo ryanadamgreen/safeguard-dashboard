@@ -31,7 +31,7 @@ export function roleLabel(role: Role): string {
 
 /** Map Supabase DB role string → app Role enum */
 export function mapDbRole(dbRole: string): Role {
-  if (dbRole === "admin")           return "ADMIN";
-  if (dbRole === "readonly_staff")  return "READONLY_STAFF";
+  if (dbRole === "admin" || dbRole === "super_admin") return "ADMIN";
+  if (dbRole === "readonly_staff")                    return "READONLY_STAFF";
   return "HOME_STAFF";
 }
