@@ -303,12 +303,8 @@ export async function createDevice(
 }
 
 /**
- * Poll for pairing completion by home.
- * Queries for any device in the home whose pairing_code was cleared
- * within the last 15 minutes — works regardless of whether the Android
- * app paired the exact row the dashboard created.
- *
- * Also checks the original deviceId row for expiry.
+ * Poll for pairing completion by device ID.
+ * Checks the specific device row and returns isPaired when paired_at is set.
  */
 export async function checkPairingStatus(
   homeId: string,
@@ -316,46 +312,29 @@ export async function checkPairingStatus(
 ): Promise<{ isPaired: boolean; pairedDeviceId: string | null; isExpired: boolean; error: string | null }> {
   const supabase = createSupabaseServerClient();
 
-  // Check for any recently paired device in this home
-  const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-  console.log("[checkPairingStatus] querying homeId:", homeId, "originalDeviceId:", originalDeviceId, "cutoff:", cutoff);
+  console.log("[checkPairingStatus] querying deviceId:", originalDeviceId);
 
-  const { data: paired, error: pairErr } = await supabase
+  const { data: row, error } = await supabase
     .from("devices")
-    .select("id, home_id, pairing_code, paired_at")
-    .eq("home_id", homeId)
-    .is("pairing_code", null)
-    .not("paired_at", "is", null)
-    .gte("paired_at", cutoff)
-    .limit(1);
-
-  console.log("[checkPairingStatus] paired query result:", JSON.stringify(paired), "error:", pairErr?.message ?? null);
-
-  if (pairErr) {
-    console.error("[checkPairingStatus] paired query error:", pairErr.message);
-    return { isPaired: false, pairedDeviceId: null, isExpired: false, error: pairErr.message };
-  }
-
-  if (paired && paired.length > 0) {
-    console.log("[checkPairingStatus] PAIRED detected, device id:", paired[0].id);
-    return { isPaired: true, pairedDeviceId: paired[0].id, isExpired: false, error: null };
-  }
-
-  // Check if the original device row has expired
-  const { data: orig, error: origErr } = await supabase
-    .from("devices")
-    .select("pairing_expires_at, paired_at")
+    .select("id, paired_at, pairing_expires_at")
     .eq("id", originalDeviceId)
     .single();
 
-  if (origErr) {
-    return { isPaired: false, pairedDeviceId: null, isExpired: false, error: null };
+  console.log("[checkPairingStatus] result:", JSON.stringify(row), "error:", error?.message ?? null);
+
+  if (error) {
+    console.error("[checkPairingStatus] query error:", error.message);
+    return { isPaired: false, pairedDeviceId: null, isExpired: false, error: error.message };
+  }
+
+  if (row.paired_at !== null) {
+    console.log("[checkPairingStatus] PAIRED detected, device id:", row.id);
+    return { isPaired: true, pairedDeviceId: row.id, isExpired: false, error: null };
   }
 
   const isExpired =
-    !orig.paired_at &&
-    orig.pairing_expires_at != null &&
-    new Date(orig.pairing_expires_at) < new Date();
+    row.pairing_expires_at != null &&
+    new Date(row.pairing_expires_at) < new Date();
 
   return { isPaired: false, pairedDeviceId: null, isExpired, error: null };
 }
