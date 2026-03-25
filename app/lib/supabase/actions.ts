@@ -519,3 +519,22 @@ export async function deleteReportSchedule(id: string): Promise<{ error: string 
   }
   return { error: null };
 }
+
+/**
+ * Re-fetch all children (with their devices) for a given home.
+ * Called client-side after a device is paired so the UI updates
+ * without relying on router.refresh().
+ */
+export async function fetchChildrenForHome(homeId: string): Promise<import("./queries").DbChild[]> {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("children")
+    .select("*, devices(*)")
+    .eq("home_id", homeId)
+    .order("initials");
+  if (error) {
+    console.error("[fetchChildrenForHome]", error.message);
+    return [];
+  }
+  return (data ?? []) as import("./queries").DbChild[];
+}

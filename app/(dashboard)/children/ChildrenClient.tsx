@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../components/AuthProvider";
 import type { DbChild, DbAlert, DbStaff, DbDevice } from "../../lib/supabase/queries";
 import type { DeviceStatus } from "../../lib/types";
-import { createDevice, checkPairingStatus, expirePairingCode, createChild, deleteDevice } from "../../lib/supabase/actions";
+import { createDevice, checkPairingStatus, expirePairingCode, createChild, deleteDevice, fetchChildrenForHome } from "../../lib/supabase/actions";
 
 // ── UI Types ──────────────────────────────────────────────────────────────────
 
@@ -1890,7 +1890,19 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
           }}
         />
       )}
-      {addDeviceFor   && <AddDeviceModal child={addDeviceFor} onClose={() => setAddDeviceFor(null)} onPaired={() => { setAddDeviceFor(null); router.refresh(); }} />}
+      {addDeviceFor   && (
+        <AddDeviceModal
+          child={addDeviceFor}
+          onClose={() => setAddDeviceFor(null)}
+          onPaired={async () => {
+            setAddDeviceFor(null);
+            if (homeId) {
+              const fresh = await fetchChildrenForHome(homeId);
+              if (fresh.length > 0) setLocalChildren(fresh);
+            }
+          }}
+        />
+      )}
       {editProfileFor && <EditProfilePanel child={editProfileFor} onClose={() => setEditProfileFor(null)} keyWorkerOptions={keyWorkerOptions} />}
       {controlDevice  && (
         <DeviceControlPanel
