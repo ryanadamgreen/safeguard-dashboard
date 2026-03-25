@@ -318,21 +318,26 @@ export async function checkPairingStatus(
 
   // Check for any recently paired device in this home
   const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  console.log("[checkPairingStatus] querying homeId:", homeId, "originalDeviceId:", originalDeviceId, "cutoff:", cutoff);
+
   const { data: paired, error: pairErr } = await supabase
     .from("devices")
-    .select("id")
+    .select("id, home_id, pairing_code, paired_at")
     .eq("home_id", homeId)
     .is("pairing_code", null)
     .not("paired_at", "is", null)
     .gte("paired_at", cutoff)
     .limit(1);
 
+  console.log("[checkPairingStatus] paired query result:", JSON.stringify(paired), "error:", pairErr?.message ?? null);
+
   if (pairErr) {
-    console.error("[checkPairingStatus] paired query:", pairErr.message);
+    console.error("[checkPairingStatus] paired query error:", pairErr.message);
     return { isPaired: false, pairedDeviceId: null, isExpired: false, error: pairErr.message };
   }
 
   if (paired && paired.length > 0) {
+    console.log("[checkPairingStatus] PAIRED detected, device id:", paired[0].id);
     return { isPaired: true, pairedDeviceId: paired[0].id, isExpired: false, error: null };
   }
 

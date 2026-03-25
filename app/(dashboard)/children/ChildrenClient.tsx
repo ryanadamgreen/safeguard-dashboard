@@ -1075,8 +1075,11 @@ function AddDeviceModal({ child, onClose, onPaired }: { child: UiChild; onClose:
   // Poll for pairing completion every 3 seconds
   useEffect(() => {
     if (step !== "pairing" || connected || secondsLeft === 0 || !deviceDbId) return;
+    console.log("[AddDeviceModal] polling — child.homeId:", child.homeId, "deviceDbId:", deviceDbId);
     const id = setInterval(async () => {
+      console.log("[AddDeviceModal] poll tick — child.homeId:", child.homeId, "deviceDbId:", deviceDbId);
       const result = await checkPairingStatus(child.homeId, deviceDbId);
+      console.log("[AddDeviceModal] poll result:", result);
       if (result.isPaired) {
         setConnected(true);
       } else if (result.isExpired) {
