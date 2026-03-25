@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../components/AuthProvider";
@@ -1072,22 +1072,33 @@ function AddDeviceModal({ child, onClose, onPaired }: { child: UiChild; onClose:
     }
   }, [secondsLeft, connected, deviceDbId]);
 
-  // Poll for pairing completion every 3 seconds
+  // Keep a ref to secondsLeft so the polling callback can read it
+  // without adding it to the effect deps (which would restart the
+  // interval every second as the countdown ticks).
+  const secondsLeftRef = React.useRef(secondsLeft);
+  useEffect(() => { secondsLeftRef.current = secondsLeft; }, [secondsLeft]);
+
+  // Poll for pairing completion every 3 seconds.
+  // Deps intentionally exclude secondsLeft — use the ref instead.
   useEffect(() => {
-    if (step !== "pairing" || connected || secondsLeft === 0 || !deviceDbId) return;
-    console.log("[AddDeviceModal] polling — child.homeId:", child.homeId, "deviceDbId:", deviceDbId);
+    if (step !== "pairing" || connected || !deviceDbId) return;
+    console.log("[AddDeviceModal] starting poll interval — deviceDbId:", deviceDbId, "homeId:", child.homeId);
     const id = setInterval(async () => {
-      console.log("[AddDeviceModal] poll tick — child.homeId:", child.homeId, "deviceDbId:", deviceDbId);
+      console.log("[AddDeviceModal] poll tick — secondsLeft:", secondsLeftRef.current, "deviceDbId:", deviceDbId);
+      if (secondsLeftRef.current === 0) {
+        clearInterval(id);
+        return;
+      }
       const result = await checkPairingStatus(child.homeId, deviceDbId);
-      console.log("[AddDeviceModal] poll result:", result);
+      console.log("[AddDeviceModal] poll result — data:", JSON.stringify(result), "isPaired:", result.isPaired, "isExpired:", result.isExpired, "error:", result.error);
       if (result.isPaired) {
         setConnected(true);
       } else if (result.isExpired) {
         setSecondsLeft(0);
       }
     }, 3000);
-    return () => clearInterval(id);
-  }, [step, connected, secondsLeft, deviceDbId, child.homeId]);
+    return () => { console.log("[AddDeviceModal] clearing poll interval"); clearInterval(id); };
+  }, [step, connected, deviceDbId, child.homeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-close 2 seconds after successful pairing and refresh the list
   useEffect(() => {
