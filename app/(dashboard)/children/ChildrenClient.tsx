@@ -1100,15 +1100,6 @@ function AddDeviceModal({ child, onClose, onPaired }: { child: UiChild; onClose:
     return () => { console.log("[AddDeviceModal] clearing poll interval"); clearInterval(id); };
   }, [step, connected, deviceDbId, child.homeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-close 2 seconds after successful pairing and refresh the list
-  useEffect(() => {
-    if (!connected) return;
-    const id = setTimeout(() => {
-      onPaired();
-      onClose();
-    }, 2000);
-    return () => clearTimeout(id);
-  }, [connected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleNext() {
     const resolvedName = deviceName.trim() || `${manufacturer} ${deviceType}`;
@@ -1389,7 +1380,7 @@ function AddDeviceModal({ child, onClose, onPaired }: { child: UiChild; onClose:
 
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100">
               <button
-                onClick={onClose}
+                onClick={() => { if (connected) { onPaired(); } onClose(); }}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
               >
                 {connected ? "Done" : "Close"}
