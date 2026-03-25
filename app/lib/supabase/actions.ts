@@ -363,6 +363,26 @@ export async function expirePairingCode(
 }
 
 /**
+ * Update a device's status in the database.
+ * Used by Pause/Resume Internet — the Android app polls this field.
+ */
+export async function setDeviceStatus(
+  deviceId: string,
+  status: "online" | "offline" | "restricted"
+): Promise<{ error: string | null }> {
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase
+    .from("devices")
+    .update({ status })
+    .eq("id", deviceId);
+  if (error) {
+    console.error("[setDeviceStatus]", error.message);
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
+/**
  * Permanently delete a device record (unpair).
  */
 export async function deleteDevice(

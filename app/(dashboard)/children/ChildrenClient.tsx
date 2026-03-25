@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../components/AuthProvider";
 import type { DbChild, DbAlert, DbStaff, DbDevice } from "../../lib/supabase/queries";
 import type { DeviceStatus } from "../../lib/types";
-import { createDevice, checkPairingStatus, expirePairingCode, createChild, deleteDevice, fetchChildrenForHome } from "../../lib/supabase/actions";
+import { createDevice, checkPairingStatus, expirePairingCode, createChild, deleteDevice, fetchChildrenForHome, setDeviceStatus } from "../../lib/supabase/actions";
 
 // ── UI Types ──────────────────────────────────────────────────────────────────
 
@@ -1682,6 +1682,7 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
 
   function handleSetStatus(id: string, status: DeviceStatus) {
     setDeviceStatuses((prev) => ({ ...prev, [id]: status }));
+    setDeviceStatus(id, status as "online" | "offline" | "restricted");
   }
 
   // Web restriction indicators — updated by DeviceControlPanel
