@@ -303,35 +303,56 @@ export async function createDevice(
 }
 
 /**
- * Poll for pairing completion.
- * isPaired is true when pairing_code has been cleared (set to null by /api/pair),
- * which is the reliable indicator that the Android app has successfully paired.
- * isExpired is true when the code expiry has passed and the device was never paired.
+ * Poll for pairing completion by home.
+ * Queries for any device in the home whose pairing_code was cleared
+ * within the last 15 minutes — works regardless of whether the Android
+ * app paired the exact row the dashboard created.
+ *
+ * Also checks the original deviceId row for expiry.
  */
 export async function checkPairingStatus(
-  deviceId: string
-): Promise<{ isPaired: boolean; isExpired: boolean; error: string | null }> {
+  homeId: string,
+  originalDeviceId: string
+): Promise<{ isPaired: boolean; pairedDeviceId: string | null; isExpired: boolean; error: string | null }> {
   const supabase = createSupabaseServerClient();
-  const { data: row, error } = await supabase
-    .from("devices")
-    .select("pairing_code, paired_at, pairing_expires_at")
-    .eq("id", deviceId)
-    .single();
 
-  if (error) {
-    console.error("[checkPairingStatus]", error.message);
-    return { isPaired: false, isExpired: false, error: error.message };
+  // Check for any recently paired device in this home
+  const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const { data: paired, error: pairErr } = await supabase
+    .from("devices")
+    .select("id")
+    .eq("home_id", homeId)
+    .is("pairing_code", null)
+    .not("paired_at", "is", null)
+    .gte("paired_at", cutoff)
+    .limit(1);
+
+  if (pairErr) {
+    console.error("[checkPairingStatus] paired query:", pairErr.message);
+    return { isPaired: false, pairedDeviceId: null, isExpired: false, error: pairErr.message };
   }
 
-  // Primary indicator: pairing_code cleared by /api/pair on success
-  const isPaired = row.pairing_code === null && row.paired_at !== null;
+  if (paired && paired.length > 0) {
+    return { isPaired: true, pairedDeviceId: paired[0].id, isExpired: false, error: null };
+  }
+
+  // Check if the original device row has expired
+  const { data: orig, error: origErr } = await supabase
+    .from("devices")
+    .select("pairing_expires_at, paired_at")
+    .eq("id", originalDeviceId)
+    .single();
+
+  if (origErr) {
+    return { isPaired: false, pairedDeviceId: null, isExpired: false, error: null };
+  }
 
   const isExpired =
-    !isPaired &&
-    row.pairing_expires_at != null &&
-    new Date(row.pairing_expires_at) < new Date();
+    !orig.paired_at &&
+    orig.pairing_expires_at != null &&
+    new Date(orig.pairing_expires_at) < new Date();
 
-  return { isPaired, isExpired, error: null };
+  return { isPaired: false, pairedDeviceId: null, isExpired, error: null };
 }
 
 /**

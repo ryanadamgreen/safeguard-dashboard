@@ -60,7 +60,9 @@ function mapDbDevice(d: DbDevice, childInitials: string): UiDevice {
     dbId: d.id,
     type: d.device_type ?? "Tablet",
     assignedTo: childInitials,
-    status: (d.status ?? "offline") as DeviceStatus,
+    status: (d.status === "active" || d.status === "online" ? "online"
+           : d.status === "restricted"                      ? "restricted"
+           :                                                  "offline") as DeviceStatus,
     lastSeen: formatLastSeen(d.last_seen),
     battery: d.battery_level ?? 50,
     manufacturer: d.manufacturer ?? "Unknown",
@@ -1074,7 +1076,7 @@ function AddDeviceModal({ child, onClose, onPaired }: { child: UiChild; onClose:
   useEffect(() => {
     if (step !== "pairing" || connected || secondsLeft === 0 || !deviceDbId) return;
     const id = setInterval(async () => {
-      const result = await checkPairingStatus(deviceDbId);
+      const result = await checkPairingStatus(child.homeId, deviceDbId);
       if (result.isPaired) {
         setConnected(true);
       } else if (result.isExpired) {
@@ -1082,7 +1084,7 @@ function AddDeviceModal({ child, onClose, onPaired }: { child: UiChild; onClose:
       }
     }, 3000);
     return () => clearInterval(id);
-  }, [step, connected, secondsLeft, deviceDbId]);
+  }, [step, connected, secondsLeft, deviceDbId, child.homeId]);
 
   // Auto-close 2 seconds after successful pairing and refresh the list
   useEffect(() => {
