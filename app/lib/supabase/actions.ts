@@ -320,10 +320,12 @@ export async function checkPairingStatus(
     .eq("id", originalDeviceId)
     .single();
 
-  console.log("[checkPairingStatus] result:", JSON.stringify(row), "error:", error?.message ?? null);
+  // Log both data and error together so RLS/key issues are immediately visible
+  console.log("[checkPairingStatus] data:", JSON.stringify(row), "| error code:", error?.code ?? null, "| error message:", error?.message ?? null);
 
   if (error) {
-    console.error("[checkPairingStatus] query error:", error.message);
+    // "PGRST116" = no rows found — likely RLS blocking or wrong device ID
+    console.error("[checkPairingStatus] QUERY FAILED — code:", error.code, "msg:", error.message, "hint:", error.hint ?? null);
     return { isPaired: false, pairedDeviceId: null, isExpired: false, error: error.message };
   }
 
