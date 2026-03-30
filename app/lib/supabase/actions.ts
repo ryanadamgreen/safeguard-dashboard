@@ -370,13 +370,16 @@ export async function setDeviceStatus(
   deviceId: string,
   status: "online" | "offline" | "restricted"
 ): Promise<{ error: string | null }> {
+  console.log("[setDeviceStatus] called — deviceId:", deviceId, "status:", status);
   const supabase = createSupabaseServerClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("devices")
     .update({ status })
-    .eq("id", deviceId);
+    .eq("id", deviceId)
+    .select("id, status");
+  console.log("[setDeviceStatus] result — data:", JSON.stringify(data), "error:", error?.message ?? null);
   if (error) {
-    console.error("[setDeviceStatus]", error.message);
+    console.error("[setDeviceStatus] error:", error.message);
     return { error: error.message };
   }
   return { error: null };

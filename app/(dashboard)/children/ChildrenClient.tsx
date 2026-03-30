@@ -1681,8 +1681,10 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
   const [deviceStatuses, setDeviceStatuses] = useState<Record<string, DeviceStatus>>({});
 
   function handleSetStatus(id: string, status: DeviceStatus) {
+    console.log("[handleSetStatus] id:", id, "status:", status);
     setDeviceStatuses((prev) => ({ ...prev, [id]: status }));
-    setDeviceStatus(id, status as "online" | "offline" | "restricted");
+    setDeviceStatus(id, status as "online" | "offline" | "restricted")
+      .then((res) => console.log("[handleSetStatus] setDeviceStatus result:", res));
   }
 
   // Web restriction indicators — updated by DeviceControlPanel
