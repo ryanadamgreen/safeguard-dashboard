@@ -55,6 +55,13 @@ export interface DbStaff {
   staff_homes: DbStaffHome[];
 }
 
+export interface DbDeviceSchedule {
+  enabled: boolean;
+  start: string;  // "HH:MM"
+  end: string;    // "HH:MM"
+  days: boolean[]; // [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
+}
+
 export interface DbDevice {
   id: string;
   child_id: string | null;
@@ -74,6 +81,11 @@ export interface DbDevice {
   pairing_expires_at: string | null;
   paired_at: string | null;
   created_at: string;
+  settings_blocked_apps: string[];
+  settings_blocked_categories: string[];
+  settings_blocked_domains: string[];
+  settings_schedule: DbDeviceSchedule | null;
+  settings_content_monitoring: string[];
 }
 
 export interface DbChildDevice extends DbDevice {

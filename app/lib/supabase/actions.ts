@@ -363,6 +363,30 @@ export async function expirePairingCode(
 }
 
 /**
+ * Persist any subset of device settings to Supabase.
+ * Accepts a partial patch so each control only needs to send what it changed.
+ * The Android app reads all settings_* columns on each heartbeat.
+ */
+export async function saveDeviceSettings(
+  deviceId: string,
+  patch: {
+    settings_blocked_apps?: string[];
+    settings_blocked_categories?: string[];
+    settings_blocked_domains?: string[];
+    settings_schedule?: { enabled: boolean; start: string; end: string; days: boolean[] } | null;
+    settings_content_monitoring?: string[];
+  }
+): Promise<{ error: string | null }> {
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase.from("devices").update(patch).eq("id", deviceId);
+  if (error) {
+    console.error("[saveDeviceSettings]", error.message);
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
+/**
  * Update a device's status in the database.
  * Used by Pause/Resume Internet — the Android app polls this field.
  */

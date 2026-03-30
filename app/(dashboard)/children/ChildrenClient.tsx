@@ -4,11 +4,19 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../components/AuthProvider";
-import type { DbChild, DbAlert, DbStaff, DbDevice } from "../../lib/supabase/queries";
+import type { DbChild, DbAlert, DbStaff, DbDevice, DbDeviceSchedule } from "../../lib/supabase/queries";
 import type { DeviceStatus } from "../../lib/types";
-import { createDevice, checkPairingStatus, expirePairingCode, createChild, deleteDevice, fetchChildrenForHome, setDeviceStatus } from "../../lib/supabase/actions";
+import { createDevice, checkPairingStatus, expirePairingCode, createChild, deleteDevice, fetchChildrenForHome, setDeviceStatus, saveDeviceSettings } from "../../lib/supabase/actions";
 
 // ── UI Types ──────────────────────────────────────────────────────────────────
+
+interface UiDeviceSettings {
+  blockedApps: string[];
+  blockedCategories: string[];
+  blockedDomains: string[];
+  schedule: DbDeviceSchedule | null;
+  contentMonitoring: string[];
+}
 
 interface UiDevice {
   id: string;          // display name: device_name ?? first 8 chars of UUID
@@ -21,6 +29,7 @@ interface UiDevice {
   manufacturer: string;
   appVersion: string;
   location: { lat: number; lng: number; area: string; updatedAt: string };
+  settings: UiDeviceSettings;
 }
 
 interface UiChild {
@@ -72,6 +81,13 @@ function mapDbDevice(d: DbDevice, childInitials: string): UiDevice {
       lng: loc?.lng ?? 0,
       area: loc?.area ?? "Unknown",
       updatedAt: d.last_seen ?? new Date().toISOString(),
+    },
+    settings: {
+      blockedApps:        Array.isArray(d.settings_blocked_apps)        ? d.settings_blocked_apps        : [],
+      blockedCategories:  Array.isArray(d.settings_blocked_categories)  ? d.settings_blocked_categories  : [],
+      blockedDomains:     Array.isArray(d.settings_blocked_domains)     ? d.settings_blocked_domains     : [],
+      schedule:           d.settings_schedule ?? null,
+      contentMonitoring:  Array.isArray(d.settings_content_monitoring)  ? d.settings_content_monitoring  : [],
     },
   };
 }
@@ -343,25 +359,25 @@ function DeviceControlPanel({
   const [removeLoading, setRemoveLoading] = useState(false);
   const [removeError, setRemoveError] = useState("");
 
-  // Schedule
-  const [scheduleEnabled, setScheduleEnabled] = useState(false);
-  const [startTime, setStartTime] = useState("21:00");
-  const [endTime, setEndTime]     = useState("07:00");
-  const [days, setDays]           = useState<boolean[]>([true, true, true, true, true, true, true]);
+  // Schedule — initialised from persisted settings
+  const [scheduleEnabled, setScheduleEnabled] = useState(device.settings.schedule?.enabled ?? false);
+  const [startTime, setStartTime] = useState(device.settings.schedule?.start ?? "21:00");
+  const [endTime, setEndTime]     = useState(device.settings.schedule?.end   ?? "07:00");
+  const [days, setDays]           = useState<boolean[]>(device.settings.schedule?.days ?? [true, true, true, true, true, true, true]);
   const [scheduleSaved, setScheduleSaved] = useState(false);
 
-  // Blocked apps
-  const [blockedApps, setBlockedApps]   = useState<string[]>([]);
+  // Blocked apps — initialised from persisted settings
+  const [blockedApps, setBlockedApps]   = useState<string[]>(device.settings.blockedApps);
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [appSearch, setAppSearch]       = useState("");
 
-  // Blocked websites
-  const [blockedCategories, setBlockedCategories] = useState<string[]>([]);
-  const [customDomains, setCustomDomains]         = useState<string[]>([]);
+  // Blocked websites — initialised from persisted settings
+  const [blockedCategories, setBlockedCategories] = useState<string[]>(device.settings.blockedCategories);
+  const [customDomains, setCustomDomains]         = useState<string[]>(device.settings.blockedDomains);
   const [domainInput, setDomainInput]             = useState("");
 
-  // Content monitoring
-  const [contentMonitoring, setContentMonitoring] = useState<string[]>([]);
+  // Content monitoring — initialised from persisted settings
+  const [contentMonitoring, setContentMonitoring] = useState<string[]>(device.settings.contentMonitoring);
 
   useEffect(() => {
     onSetWebRestrictions(device.dbId, blockedCategories.length > 0 || customDomains.length > 0);
@@ -371,7 +387,9 @@ function DeviceControlPanel({
   function handleAddDomain() {
     const d = domainInput.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
     if (d && !customDomains.includes(d)) {
-      setCustomDomains((prev) => [...prev, d]);
+      const newDomains = [...customDomains, d];
+      setCustomDomains(newDomains);
+      saveDeviceSettings(device.dbId, { settings_blocked_domains: newDomains });
     }
     setDomainInput("");
   }
@@ -387,6 +405,9 @@ function DeviceControlPanel({
   function handleSaveSchedule() {
     setScheduleSaved(true);
     setTimeout(() => setScheduleSaved(false), 2000);
+    saveDeviceSettings(device.dbId, {
+      settings_schedule: { enabled: scheduleEnabled, start: startTime, end: endTime, days },
+    });
   }
 
   function toggleAppSelect(name: string) {
@@ -396,8 +417,10 @@ function DeviceControlPanel({
   }
 
   function handleBlockSelected() {
-    setBlockedApps((prev) => [...prev, ...selectedApps.filter((a) => !prev.includes(a))]);
+    const newBlocked = [...blockedApps, ...selectedApps.filter((a) => !blockedApps.includes(a))];
+    setBlockedApps(newBlocked);
     setSelectedApps([]);
+    saveDeviceSettings(device.dbId, { settings_blocked_apps: newBlocked });
   }
 
   function handleRequestLocation() {
@@ -542,7 +565,13 @@ function DeviceControlPanel({
               <p className={sectionLabel} style={{ marginBottom: 0 }}>Bedtime Schedule</p>
               <button
                 type="button"
-                onClick={() => setScheduleEnabled((v) => !v)}
+                onClick={() => {
+                  const newEnabled = !scheduleEnabled;
+                  setScheduleEnabled(newEnabled);
+                  saveDeviceSettings(device.dbId, {
+                    settings_schedule: { enabled: newEnabled, start: startTime, end: endTime, days },
+                  });
+                }}
                 className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${
                   scheduleEnabled ? "bg-blue-600" : "bg-slate-200"
                 }`}
@@ -639,7 +668,11 @@ function DeviceControlPanel({
                           </span>
                         )}
                         <button
-                          onClick={() => setBlockedApps((prev) => prev.filter((a) => a !== name))}
+                          onClick={() => {
+                            const newBlocked = blockedApps.filter((a) => a !== name);
+                            setBlockedApps(newBlocked);
+                            saveDeviceSettings(device.dbId, { settings_blocked_apps: newBlocked });
+                          }}
                           className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0 ml-1"
                           title="Unblock"
                         >
@@ -775,11 +808,13 @@ function DeviceControlPanel({
                       <p className="text-[10px] text-slate-400 mt-0.5">{cat.domains} domains</p>
                     </div>
                     <button
-                      onClick={() =>
-                        setBlockedCategories((prev) =>
-                          active ? prev.filter((c) => c !== cat.id) : [...prev, cat.id]
-                        )
-                      }
+                      onClick={() => {
+                        const newCats = active
+                          ? blockedCategories.filter((c) => c !== cat.id)
+                          : [...blockedCategories, cat.id];
+                        setBlockedCategories(newCats);
+                        saveDeviceSettings(device.dbId, { settings_blocked_categories: newCats });
+                      }}
                       className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
                         active ? "bg-red-500" : "bg-slate-200"
                       }`}
@@ -808,7 +843,11 @@ function DeviceControlPanel({
                   >
                     {domain}
                     <button
-                      onClick={() => setCustomDomains((prev) => prev.filter((d) => d !== domain))}
+                      onClick={() => {
+                        const newDomains = customDomains.filter((d) => d !== domain);
+                        setCustomDomains(newDomains);
+                        saveDeviceSettings(device.dbId, { settings_blocked_domains: newDomains });
+                      }}
                       className="text-red-300 hover:text-red-600 transition-colors ml-0.5"
                       title="Remove"
                     >
@@ -877,11 +916,13 @@ function DeviceControlPanel({
                       <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{item.description}</p>
                     </div>
                     <button
-                      onClick={() =>
-                        setContentMonitoring((prev) =>
-                          active ? prev.filter((c) => c !== item.id) : [...prev, item.id]
-                        )
-                      }
+                      onClick={() => {
+                        const newMonitoring = active
+                          ? contentMonitoring.filter((c) => c !== item.id)
+                          : [...contentMonitoring, item.id];
+                        setContentMonitoring(newMonitoring);
+                        saveDeviceSettings(device.dbId, { settings_content_monitoring: newMonitoring });
+                      }}
                       className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none mt-0.5 ${
                         active ? "bg-blue-600" : "bg-slate-200"
                       }`}
