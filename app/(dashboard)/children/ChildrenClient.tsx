@@ -345,6 +345,7 @@ function DeviceControlPanel({
   onSetStatus,
   onSetWebRestrictions,
   onRemoved,
+  onSettingsSaved,
 }: {
   device: UiDevice;
   status: DeviceStatus;
@@ -353,6 +354,7 @@ function DeviceControlPanel({
   onSetStatus: (id: string, status: DeviceStatus) => void;
   onSetWebRestrictions: (id: string, hasRestrictions: boolean) => void;
   onRemoved: (deviceDbId: string) => void;
+  onSettingsSaved: (patch: Partial<Record<string, unknown>>) => void;
 }) {
   const [repairOpen, setRepairOpen] = useState(false);
   const [removeConfirm, setRemoveConfirm] = useState(false);
@@ -364,7 +366,9 @@ function DeviceControlPanel({
   const [startTime, setStartTime] = useState(device.settings.schedule?.start ?? "21:00");
   const [endTime, setEndTime]     = useState(device.settings.schedule?.end   ?? "07:00");
   const [days, setDays]           = useState<boolean[]>(device.settings.schedule?.days ?? [true, true, true, true, true, true, true]);
-  const [scheduleSaved, setScheduleSaved] = useState(false);
+  const [scheduleSaved,    setScheduleSaved]    = useState(false);
+  const [categoriesSaved,  setCategoriesSaved]  = useState(false);
+  const [monitoringSaved,  setMonitoringSaved]  = useState(false);
 
   // Blocked apps — initialised from persisted settings
   const [blockedApps, setBlockedApps]   = useState<string[]>(device.settings.blockedApps);
@@ -808,13 +812,11 @@ function DeviceControlPanel({
                       <p className="text-[10px] text-slate-400 mt-0.5">{cat.domains} domains</p>
                     </div>
                     <button
-                      onClick={() => {
-                        const newCats = active
-                          ? blockedCategories.filter((c) => c !== cat.id)
-                          : [...blockedCategories, cat.id];
-                        setBlockedCategories(newCats);
-                        saveDeviceSettings(device.dbId, { settings_blocked_categories: newCats });
-                      }}
+                      onClick={() =>
+                        setBlockedCategories((prev) =>
+                          active ? prev.filter((c) => c !== cat.id) : [...prev, cat.id]
+                        )
+                      }
                       className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
                         active ? "bg-red-500" : "bg-slate-200"
                       }`}
@@ -829,6 +831,20 @@ function DeviceControlPanel({
                 );
               })}
             </div>
+
+            <button
+              onClick={async () => {
+                await saveDeviceSettings(device.dbId, { settings_blocked_categories: blockedCategories });
+                onSettingsSaved({ settings_blocked_categories: blockedCategories });
+                setCategoriesSaved(true);
+                setTimeout(() => setCategoriesSaved(false), 2000);
+              }}
+              className={`w-full mb-4 px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
+                categoriesSaved ? "bg-emerald-500 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
+              }`}
+            >
+              {categoriesSaved ? "Saved!" : "Save Category Filters"}
+            </button>
 
             {/* Custom domain blocking */}
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Block Specific Website</p>
@@ -916,13 +932,11 @@ function DeviceControlPanel({
                       <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{item.description}</p>
                     </div>
                     <button
-                      onClick={() => {
-                        const newMonitoring = active
-                          ? contentMonitoring.filter((c) => c !== item.id)
-                          : [...contentMonitoring, item.id];
-                        setContentMonitoring(newMonitoring);
-                        saveDeviceSettings(device.dbId, { settings_content_monitoring: newMonitoring });
-                      }}
+                      onClick={() =>
+                        setContentMonitoring((prev) =>
+                          active ? prev.filter((c) => c !== item.id) : [...prev, item.id]
+                        )
+                      }
                       className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none mt-0.5 ${
                         active ? "bg-blue-600" : "bg-slate-200"
                       }`}
@@ -937,6 +951,20 @@ function DeviceControlPanel({
                 );
               })}
             </div>
+
+            <button
+              onClick={async () => {
+                await saveDeviceSettings(device.dbId, { settings_content_monitoring: contentMonitoring });
+                onSettingsSaved({ settings_content_monitoring: contentMonitoring });
+                setMonitoringSaved(true);
+                setTimeout(() => setMonitoringSaved(false), 2000);
+              }}
+              className={`mt-2 w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
+                monitoringSaved ? "bg-emerald-500 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
+              }`}
+            >
+              {monitoringSaved ? "Saved!" : "Save Monitoring Settings"}
+            </button>
           </div>
 
           {/* ── LOCATION ── */}
@@ -1962,6 +1990,16 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
             );
             setControlDeviceId(null);
             router.refresh();
+          }}
+          onSettingsSaved={(patch) => {
+            setLocalChildren((prev) =>
+              prev.map((c) => ({
+                ...c,
+                devices: c.devices.map((d) =>
+                  d.id === controlDevice.dbId ? { ...d, ...patch } : d
+                ),
+              }))
+            );
           }}
         />
       )}
