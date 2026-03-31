@@ -197,13 +197,13 @@ const APP_LIST: AppEntry[] = [
 // ── Web category block list ───────────────────────────────────────────────────
 
 const WEB_CATEGORIES = [
-  { id: "adult",    label: "Adult Content",      description: "Blocks pornographic and explicit sites",       domains: "2,400+" },
-  { id: "gambling", label: "Gambling",            description: "Blocks betting and gambling sites",             domains: "850+"   },
-  { id: "drugs",    label: "Drugs & Alcohol",     description: "Blocks drug-related content",                  domains: "620+"   },
-  { id: "selfharm", label: "Self Harm",           description: "Blocks self-harm related content",             domains: "380+"   },
-  { id: "dating",   label: "Dating Apps & Sites", description: "Blocks dating platforms",                      domains: "1,200+" },
-  { id: "proxy",    label: "Proxy & VPN Sites",   description: "Blocks sites that could bypass monitoring",    domains: "4,100+" },
-  { id: "social",   label: "Social Media",        description: "Blocks major social platforms",                domains: "2,800+" },
+  { id: "adult",    label: "Adult Content",      description: "Blocks pornographic and explicit sites",       domains: "144+"  },
+  { id: "gambling", label: "Gambling",            description: "Blocks betting and gambling sites",             domains: "99+"   },
+  { id: "drugs",    label: "Drugs & Alcohol",     description: "Blocks drug-related content",                  domains: "47+"   },
+  { id: "selfharm", label: "Self Harm",           description: "Blocks self-harm related content",             domains: "25+"   },
+  { id: "dating",   label: "Dating Apps & Sites", description: "Blocks dating platforms",                      domains: "61+"   },
+  { id: "proxy",    label: "Proxy & VPN Sites",   description: "Blocks sites that could bypass monitoring",    domains: "60+"   },
+  { id: "social",   label: "Social Media",        description: "Blocks major social platforms",                domains: "79+"   },
 ] as const;
 
 const CATEGORY_BADGE: Record<AppCategory, string> = {
