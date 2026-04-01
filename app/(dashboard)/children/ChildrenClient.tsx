@@ -197,13 +197,13 @@ const APP_LIST: AppEntry[] = [
 // ── Web category block list ───────────────────────────────────────────────────
 
 const WEB_CATEGORIES = [
-  { id: "adult",    label: "Adult Content",      description: "Blocks pornographic and explicit sites",       domains: "144+"  },
-  { id: "gambling", label: "Gambling",            description: "Blocks betting and gambling sites",             domains: "99+"   },
-  { id: "drugs",    label: "Drugs & Alcohol",     description: "Blocks drug-related content",                  domains: "47+"   },
-  { id: "selfharm", label: "Self Harm",           description: "Blocks self-harm related content",             domains: "25+"   },
-  { id: "dating",   label: "Dating Apps & Sites", description: "Blocks dating platforms",                      domains: "61+"   },
-  { id: "proxy",    label: "Proxy & VPN Sites",   description: "Blocks sites that could bypass monitoring",    domains: "60+"   },
-  { id: "social",   label: "Social Media",        description: "Blocks major social platforms",                domains: "79+"   },
+  { id: "adult",    label: "Adult Content",      description: "Blocks pornographic and explicit sites",       domains: "166,000+"  },
+  { id: "gambling", label: "Gambling",            description: "Blocks betting and gambling sites",             domains: "95,900+"   },
+  { id: "drugs",    label: "Drugs & Alcohol",     description: "Blocks drug-related content",                  domains: "26,000+"   },
+  { id: "selfharm", label: "Self Harm",           description: "Blocks self-harm related content",             domains: "36+"       },
+  { id: "dating",   label: "Dating Apps & Sites", description: "Blocks dating platforms",                      domains: "1,300+"    },
+  { id: "proxy",    label: "Proxy & VPN Sites",   description: "Blocks sites that could bypass monitoring",    domains: "1,000+"    },
+  { id: "social",   label: "Social Media",        description: "Blocks major social platforms",                domains: "3,300+"    },
 ] as const;
 
 const CATEGORY_BADGE: Record<AppCategory, string> = {
