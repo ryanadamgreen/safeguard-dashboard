@@ -40,6 +40,27 @@ function formatAlertDescription(alertType: string | null, raw: string | null): s
   return desc;
 }
 
+function friendlyAlertType(raw: string): string {
+  const map: Record<string, string> = {
+    app_blocked:      "App Blocked",
+    blocked_website:  "Website Blocked",
+    battery_low:      "Battery Low",
+    device_offline:   "Device Offline",
+    tamper:           "Tamper Detected",
+    content_flagged:  "Content Flagged",
+  };
+  return map[raw] ?? raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatLocation(loc: Record<string, unknown> | null | undefined): string {
+  if (!loc) return "Location unavailable";
+  const { lat, lng } = loc as { lat?: number; lng?: number };
+  if (typeof lat === "number" && typeof lng === "number") {
+    return `Lat: ${lat}, Lng: ${lng}`;
+  }
+  return "Location unavailable";
+}
+
 function mapDbAlertToAlert(a: DbAlert, index: number): Alert {
   const description = formatAlertDescription(a.alert_type, a.description);
   return {
@@ -55,7 +76,7 @@ function mapDbAlertToAlert(a: DbAlert, index: number): Alert {
     status: "unread" as AlertStatus,
     description,
     triggerContent: description,
-    location: "",
+    location: formatLocation(a.devices?.last_location),
     app: a.app_name ?? undefined,
     hasScreenshot: a.has_screenshot ?? false,
   };
@@ -662,13 +683,29 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
                   className={`cursor-pointer grid grid-cols-[2fr_2.5fr_1.6fr_1.2fr_1.6fr_auto] gap-4 px-6 py-4 items-center border-l-[3px] ${severityRowAccent[alert.severity]} hover:bg-slate-50/70 transition-colors`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold flex-shrink-0 ${
-                      alert.severity === "critical" ? "bg-red-100 text-red-700" :
-                      alert.severity === "high"     ? "bg-orange-100 text-orange-700" :
-                                                      "bg-slate-100 text-slate-600"
-                    }`}>
-                      {alert.childInitials.replace(/\./g, "").slice(0, 2)}
-                    </div>
+                    {alert.alertType === "blocked_website" ? (
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 flex-shrink-0 overflow-hidden">
+                        <img
+                          src={`https://www.google.com/s2/favicons?domain=${alert.description.replace(/^Site blocked:\s*/i, "").trim()}&sz=32`}
+                          alt=""
+                          width={20}
+                          height={20}
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                        />
+                      </div>
+                    ) : alert.alertType === "app_blocked" ? (
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 text-purple-700 text-xs font-bold flex-shrink-0">
+                        {alert.description.replace(/^App blocked:\s*/i, "").trim().charAt(0).toUpperCase()}
+                      </div>
+                    ) : (
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold flex-shrink-0 ${
+                        alert.severity === "critical" ? "bg-red-100 text-red-700" :
+                        alert.severity === "high"     ? "bg-orange-100 text-orange-700" :
+                                                        "bg-slate-100 text-slate-600"
+                      }`}>
+                        {alert.childInitials.replace(/\./g, "").slice(0, 2)}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-slate-800 truncate">{alert.childName}</p>
                       <p className="text-xs text-slate-400 truncate">Age {alert.childAge}</p>
@@ -677,7 +714,7 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
 
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium text-slate-700">{alert.alertType}</p>
+                      <p className="text-sm font-medium text-slate-700">{friendlyAlertType(alert.alertType)}</p>
                       {alert.hasScreenshot && (
                         <span title="Screenshot included in download" className="flex-shrink-0 text-slate-400">
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>

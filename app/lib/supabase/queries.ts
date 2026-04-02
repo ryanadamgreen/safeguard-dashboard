@@ -137,6 +137,7 @@ export interface DbAlert {
     id: string;
     device_name: string | null;
     device_type: string | null;
+    last_location: Record<string, unknown> | null;
   } | null;
 }
 
@@ -271,7 +272,7 @@ export async function getAlerts(limit = 50): Promise<DbAlert[]> {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("alerts")
-    .select("*, children(id, initials, age), devices(id, device_name, device_type)")
+    .select("*, children(id, initials, age), devices(id, device_name, device_type, last_location)")
     .order("created_at", { ascending: false })
     .limit(limit);
 

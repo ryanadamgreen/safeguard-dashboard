@@ -63,7 +63,15 @@ export function AlertReportModal({ alert, homeName, onClose }: Props) {
               <span className="text-slate-500">Age: <span className="font-semibold text-slate-700">{alert.childAge}</span></span>
               <span className="text-slate-500">Device: <span className="font-semibold text-slate-700">{alert.device}</span></span>
               <span className="text-slate-500">Time: <span className="font-semibold text-slate-700">{alertTime}</span></span>
-              <span className="col-span-2 text-slate-500">Location: <span className="font-semibold text-slate-700">{alert.location}</span></span>
+              <span className="col-span-2 text-slate-500">Location:{" "}
+                {!alert.location || alert.location === "Location unavailable" ? (
+                  <span className="italic text-slate-400">Not recorded</span>
+                ) : alert.location.startsWith("Lat:") ? (
+                  <span className="font-semibold text-slate-700 font-mono text-[11px]">{alert.location}</span>
+                ) : (
+                  <span className="font-semibold text-slate-700">{alert.location}</span>
+                )}
+              </span>
             </div>
             <div className="pt-2 border-t border-slate-200">
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Trigger</p>
