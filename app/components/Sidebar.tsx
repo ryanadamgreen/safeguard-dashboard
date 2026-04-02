@@ -64,6 +64,11 @@ export default function Sidebar({ initialAlertCount }: { initialAlertCount: numb
   // ── Alerts badge: live count from Supabase, updated via Realtime ──
   const [alertBadgeCount, setAlertBadgeCount] = useState(initialAlertCount);
 
+  // Clear badge when user visits the Alerts page
+  useEffect(() => {
+    if (pathname === "/alerts") setAlertBadgeCount(0);
+  }, [pathname]);
+
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
     const channel = supabase

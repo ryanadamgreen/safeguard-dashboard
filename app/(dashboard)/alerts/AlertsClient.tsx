@@ -7,10 +7,41 @@ import SeverityBadge from "../../components/SeverityBadge";
 import { AlertReportModal } from "../../components/AlertReportModal";
 import { TamperReportModal } from "../../components/TamperReportModal";
 import { useAuth } from "../../components/AuthProvider";
+import { createSupabaseBrowserClient } from "../../lib/supabase";
 
 // ─── Data mapping ─────────────────────────────────────────────────────────────
 
+const PACKAGE_NAMES: Record<string, string> = {
+  "com.google.android.youtube":  "YouTube",
+  "com.zhiliaoapp.musically":    "TikTok",
+  "com.instagram.android":       "Instagram",
+  "com.snapchat.android":        "Snapchat",
+  "com.facebook.katana":         "Facebook",
+  "com.twitter.android":         "X (Twitter)",
+  "com.whatsapp":                "WhatsApp",
+  "org.telegram.messenger":      "Telegram",
+  "com.discord":                 "Discord",
+  "com.reddit.frontpage":        "Reddit",
+  "com.roblox.client":           "Roblox",
+  "com.mojang.minecraftpe":      "Minecraft",
+};
+
+function formatAlertDescription(alertType: string | null, raw: string | null): string {
+  const desc = raw ?? "";
+  if (alertType === "app_blocked") {
+    const pkg = desc.replace(/^Blocked app launch attempt:\s*/i, "").trim();
+    const friendly = PACKAGE_NAMES[pkg] ?? pkg;
+    return `App blocked: ${friendly}`;
+  }
+  if (alertType === "blocked_website") {
+    const domain = desc.replace(/^Blocked website attempt:\s*/i, "").trim();
+    return `Site blocked: ${domain}`;
+  }
+  return desc;
+}
+
 function mapDbAlertToAlert(a: DbAlert, index: number): Alert {
+  const description = formatAlertDescription(a.alert_type, a.description);
   return {
     id: index,
     homeId: 0,
@@ -22,8 +53,8 @@ function mapDbAlertToAlert(a: DbAlert, index: number): Alert {
     severity: (a.severity ?? "low") as Severity,
     timestamp: a.created_at,
     status: "unread" as AlertStatus,
-    description: a.description ?? "",
-    triggerContent: a.description ?? "",
+    description,
+    triggerContent: description,
     location: "",
     app: a.app_name ?? undefined,
     hasScreenshot: a.has_screenshot ?? false,
@@ -339,7 +370,7 @@ interface Props {
   dbChildren: DbChild[];
 }
 
-export default function AlertsClient({ dbAlerts, dbChildren }: Props) {
+export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: Props) {
   const { user, selectedHomeId } = useAuth();
   const [reportAlert,    setReportAlert]    = useState<Alert | null>(null);
   const [reportTamper,   setReportTamper]   = useState<TamperEvent | null>(null);
@@ -352,10 +383,31 @@ export default function AlertsClient({ dbAlerts, dbChildren }: Props) {
   const [child,     setChild]     = useState("");
   const [dateRange, setDateRange] = useState<DateRange>("all");
 
+  // Live alerts list — seeded from server, updated via Realtime
+  const [dbAlerts, setDbAlerts] = useState<DbAlert[]>(initialDbAlerts);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const c = params.get("child");
     if (c) setChild(c);
+  }, []);
+
+  // Realtime: prepend new alerts as they arrive
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    const channel = supabase
+      .channel("alerts-page")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "alerts" },
+        (payload) => {
+          const newAlert = payload.new as DbAlert;
+          setDbAlerts((prev) => [newAlert, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const homeId = selectedHomeId ?? user?.homeIds?.[0] ?? null;
