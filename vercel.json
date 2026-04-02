@@ -1,8 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/check-offline-devices",
-      "schedule": "*/5 * * * *"
-    }
-  ]
-}
+{}
