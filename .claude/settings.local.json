@@ -26,7 +26,12 @@
       "Bash(sed -i 's|from \"\"./data\"\";|from \"\"./types\"\";|g' /c/Users/ryana/safeguard-dashboard/app/lib/generateReport.ts)",
       "Bash(git init:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(find /c/Users/ryana/safeguard-dashboard -name \"*.sql\" -type f -exec grep -l \"CREATE TABLE.*alerts\" {} \\\\;)",
+      "Bash(find /c/Users/ryana/safeguard-dashboard -type f \\\\\\( -name \"README*\" -o -name \"*.md\" \\\\\\) -exec grep -l \"alerts\\\\|schema\" {} \\\\;)",
+      "Bash(xargs grep:*)",
+      "Bash(node -e \"const c = require\\('crypto'\\); console.log\\(c.randomBytes\\(32\\).toString\\('hex'\\)\\);\")"
     ]
   }
 }

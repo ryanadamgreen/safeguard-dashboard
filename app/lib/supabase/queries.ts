@@ -126,6 +126,8 @@ export interface DbAlert {
   screenshot_url: string | null;
   last_location: Record<string, unknown> | null;
   created_at: string;
+  resolved: boolean;
+  resolved_at: string | null;
   children: {
     id: string;
     initials: string;

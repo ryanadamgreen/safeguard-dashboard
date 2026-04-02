@@ -225,25 +225,66 @@ function AppAvatar({ app, size = "sm" }: { app: AppEntry; size?: "sm" | "md" }) 
 
 // ── Re-pair Modal ─────────────────────────────────────────────────────────────
 
-function RePairModal({ deviceId, onClose }: { deviceId: string; onClose: () => void }) {
-  const [code] = useState(() => Math.floor(100000 + Math.random() * 900000).toString());
+function RePairModal({ deviceDbId, deviceName, homeId, onClose }: {
+  deviceDbId: string;
+  deviceName: string;
+  homeId: string;
+  onClose: () => void;
+}) {
+  const [loading, setLoading]       = useState(true);
+  const [pairingCode, setPairingCode] = useState("");
+  const [fetchError, setFetchError] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(600);
-  const [connected, setConnected] = useState(false);
+  const [connected, setConnected]   = useState(false);
+  const secondsLeftRef = React.useRef(600);
 
+  // Call /api/repairDevice on mount to reset the device and get a fresh code
   useEffect(() => {
-    if (connected || secondsLeft === 0) return;
-    const id = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
+    fetch("/api/repairDevice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId: deviceDbId }),
+    })
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) { setFetchError(json.error ?? "Failed to generate pairing code"); return; }
+        setPairingCode(json.pairingCode);
+        setSecondsLeft(600);
+        secondsLeftRef.current = 600;
+      })
+      .catch(() => setFetchError("Network error — please try again"))
+      .finally(() => setLoading(false));
+  }, [deviceDbId]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (loading || connected || secondsLeft === 0 || !pairingCode) return;
+    const id = setInterval(() => {
+      setSecondsLeft((s) => {
+        const next = Math.max(0, s - 1);
+        secondsLeftRef.current = next;
+        return next;
+      });
+    }, 1000);
     return () => clearInterval(id);
-  }, [connected, secondsLeft]);
+  }, [loading, connected, secondsLeft, pairingCode]);
 
+  // Poll for pairing detection every 3 seconds
+  // Deps intentionally exclude secondsLeft — use the ref instead.
   useEffect(() => {
-    const t = setTimeout(() => setConnected(true), 8000);
-    return () => clearTimeout(t);
-  }, []);
+    if (loading || connected || !pairingCode) return;
+    const id = setInterval(async () => {
+      if (secondsLeftRef.current === 0) { clearInterval(id); return; }
+      const result = await checkPairingStatus(homeId, deviceDbId);
+      if (result.isPaired) setConnected(true);
+      else if (result.isExpired) setSecondsLeft(0);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [loading, connected, pairingCode, homeId, deviceDbId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const expired = secondsLeft === 0 && !connected;
-  const p1 = code.slice(0, 3);
-  const p2 = code.slice(3);
+  const p1 = pairingCode.slice(0, 3);
+  const p2 = pairingCode.slice(3);
 
   return (
     <div
@@ -254,7 +295,7 @@ function RePairModal({ deviceId, onClose }: { deviceId: string; onClose: () => v
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h2 className="text-base font-semibold text-slate-800">Re-pair Device</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{deviceId}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{deviceName}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -264,62 +305,75 @@ function RePairModal({ deviceId, onClose }: { deviceId: string; onClose: () => v
         </div>
 
         <div className="px-6 py-5 space-y-5">
-          <div className="flex flex-col items-center gap-3">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pairing Code</p>
-            <div className={`flex items-center gap-3 ${expired ? "opacity-40" : ""}`}>
-              <div className="flex gap-1.5">
-                {p1.split("").map((d, i) => (
-                  <span key={i} className="flex items-center justify-center w-10 bg-slate-100 rounded-lg text-2xl font-bold text-slate-800 font-mono px-2.5 py-2.5">{d}</span>
-                ))}
-              </div>
-              <span className="text-2xl text-slate-300 font-light">–</span>
-              <div className="flex gap-1.5">
-                {p2.split("").map((d, i) => (
-                  <span key={i} className="flex items-center justify-center w-10 bg-slate-100 rounded-lg text-2xl font-bold text-slate-800 font-mono px-2.5 py-2.5">{d}</span>
-                ))}
-              </div>
+          {loading ? (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <div className="w-8 h-8 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+              <p className="text-sm text-slate-500">Generating pairing code…</p>
             </div>
-            {!connected && (
-              <p className={`text-xs font-medium ${expired ? "text-red-500" : secondsLeft < 60 ? "text-orange-500" : "text-slate-400"}`}>
-                {expired ? "Code expired — close and try again" : `Expires in ${formatCountdown(secondsLeft)}`}
-              </p>
-            )}
-          </div>
+          ) : fetchError ? (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              <p className="text-sm text-red-700">{fetchError}</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col items-center gap-3">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pairing Code</p>
+                <div className={`flex items-center gap-3 ${expired ? "opacity-40" : ""}`}>
+                  <div className="flex gap-1.5">
+                    {p1.split("").map((d, i) => (
+                      <span key={i} className="flex items-center justify-center w-10 bg-slate-100 rounded-lg text-2xl font-bold text-slate-800 font-mono px-2.5 py-2.5">{d}</span>
+                    ))}
+                  </div>
+                  <span className="text-2xl text-slate-300 font-light">–</span>
+                  <div className="flex gap-1.5">
+                    {p2.split("").map((d, i) => (
+                      <span key={i} className="flex items-center justify-center w-10 bg-slate-100 rounded-lg text-2xl font-bold text-slate-800 font-mono px-2.5 py-2.5">{d}</span>
+                    ))}
+                  </div>
+                </div>
+                {!connected && (
+                  <p className={`text-xs font-medium ${expired ? "text-red-500" : secondsLeft < 60 ? "text-orange-500" : "text-slate-400"}`}>
+                    {expired ? "Code expired — close and try again" : `Expires in ${formatCountdown(secondsLeft)}`}
+                  </p>
+                )}
+              </div>
 
-          {!expired && (
-            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
-              <p className="text-sm text-blue-800 leading-relaxed">
-                Open the <strong>SafeGuard app</strong> on the device and enter this code to re-establish monitoring.
-              </p>
-            </div>
+              {!expired && (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+                  <p className="text-sm text-blue-800 leading-relaxed">
+                    Open the <strong>SafeGuard app</strong> on the device and enter this code to re-establish monitoring.
+                  </p>
+                </div>
+              )}
+
+              <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
+                connected ? "bg-emerald-50 border-emerald-200" :
+                expired   ? "bg-red-50 border-red-200" :
+                            "bg-slate-50 border-slate-200"
+              }`}>
+                {connected ? (
+                  <>
+                    <svg className="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm font-medium text-emerald-700">Device Re-paired Successfully</p>
+                  </>
+                ) : expired ? (
+                  <>
+                    <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm font-medium text-red-600">Pairing code expired</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-4 h-4 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin flex-shrink-0" />
+                    <p className="text-sm text-slate-500">Waiting for device to connect...</p>
+                  </>
+                )}
+              </div>
+            </>
           )}
-
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${
-            connected ? "bg-emerald-50 border-emerald-200" :
-            expired   ? "bg-red-50 border-red-200" :
-                        "bg-slate-50 border-slate-200"
-          }`}>
-            {connected ? (
-              <>
-                <svg className="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-sm font-medium text-emerald-700">Device Re-paired Successfully</p>
-              </>
-            ) : expired ? (
-              <>
-                <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="text-sm font-medium text-red-600">Pairing code expired</p>
-              </>
-            ) : (
-              <>
-                <div className="w-4 h-4 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin flex-shrink-0" />
-                <p className="text-sm text-slate-500">Waiting for device to connect...</p>
-              </>
-            )}
-          </div>
         </div>
 
         <div className="flex justify-end px-6 py-4 border-t border-slate-100">
@@ -339,6 +393,7 @@ function RePairModal({ deviceId, onClose }: { deviceId: string; onClose: () => v
 
 function DeviceControlPanel({
   device,
+  homeId,
   status,
   tamperEvent,
   onClose,
@@ -348,6 +403,7 @@ function DeviceControlPanel({
   onSettingsSaved,
 }: {
   device: UiDevice;
+  homeId: string;
   status: DeviceStatus;
   tamperEvent?: UiTamperEvent;
   onClose: () => void;
@@ -1044,6 +1100,19 @@ function DeviceControlPanel({
             </button>
           </div>
 
+          {/* ── RE-PAIR DEVICE ── */}
+          <div className="px-4 pt-2">
+            <button
+              onClick={() => setRepairOpen(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              Re-pair Device
+            </button>
+          </div>
+
           {/* ── REMOVE DEVICE ── */}
           <div className="px-4 pb-4 pt-2">
             {!removeConfirm ? (
@@ -1095,7 +1164,7 @@ function DeviceControlPanel({
 
       {/* Re-pair modal — z-60 to sit above this panel */}
       {repairOpen && (
-        <RePairModal deviceId={device.id} onClose={() => setRepairOpen(false)} />
+        <RePairModal deviceDbId={device.dbId} deviceName={device.id} homeId={homeId} onClose={() => setRepairOpen(false)} />
       )}
     </div>
   );
@@ -1979,6 +2048,7 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
       {controlDevice  && (
         <DeviceControlPanel
           device={controlDevice}
+          homeId={homeId ?? ""}
           status={deviceStatuses[controlDevice.dbId] ?? controlDevice.status}
           tamperEvent={tamperByDevice[controlDevice.dbId]}
           onClose={() => setControlDeviceId(null)}
