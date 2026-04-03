@@ -413,7 +413,7 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
     if (c) setChild(c);
   }, []);
 
-  // Realtime: prepend new alerts as they arrive
+  // Realtime: re-fetch full alert row (with joins) when a new alert arrives
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
     const channel = supabase
@@ -421,9 +421,20 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "alerts" },
-        (payload) => {
-          const newAlert = payload.new as DbAlert;
-          setDbAlerts((prev) => [newAlert, ...prev]);
+        async (payload) => {
+          const id = (payload.new as { id: string }).id;
+          const { data } = await supabase
+            .from("alerts")
+            .select(`
+              *,
+              children(id, initials, age, home_id),
+              devices(id, device_name, device_type, last_location)
+            `)
+            .eq("id", id)
+            .single();
+          if (data) {
+            setDbAlerts((prev) => [data as DbAlert, ...prev]);
+          }
         }
       )
       .subscribe();
