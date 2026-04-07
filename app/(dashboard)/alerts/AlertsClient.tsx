@@ -43,14 +43,20 @@ function formatAlertDescription(alertType: string | null, raw: string | null): s
   return desc;
 }
 
-function friendlyAlertType(raw: string): string {
+function friendlyAlertType(raw: string, description?: string): string {
+  if (raw === "content_flagged") {
+    const desc = description ?? "";
+    if (/^keyword/i.test(desc))                return "Keyword Flagged";
+    if (/^monitored site visited/i.test(desc)) return "Website Visited";
+    if (/^app opened/i.test(desc))             return "App Visited";
+    return "Content Flagged";
+  }
   const map: Record<string, string> = {
     app_blocked:      "App Blocked",
     blocked_website:  "Website Blocked",
     battery_low:      "Battery Low",
     device_offline:   "Device Offline",
     tamper:           "Tamper Detected",
-    content_flagged:  "Content Flagged",
   };
   return map[raw] ?? raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -296,7 +302,7 @@ function AlertDetailModal({
               <span className="text-xs text-slate-500">Alert Type</span>
               <div className="flex items-center gap-2">
                 <SeverityBadge severity={alert.severity} />
-                <span className="text-xs text-slate-700">{alert.alertType}</span>
+                <span className="text-xs text-slate-700">{friendlyAlertType(alert.alertType, alert.description)}</span>
               </div>
             </div>
             <div className="flex items-center justify-between px-4 py-2.5">
@@ -737,7 +743,7 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
                           {alert.description.replace(/^App blocked:\s*/i, "").trim().charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <p className="text-sm font-medium text-slate-700">{friendlyAlertType(alert.alertType)}</p>
+                      <p className="text-sm font-medium text-slate-700">{friendlyAlertType(alert.alertType, alert.description)}</p>
                       {alert.hasScreenshot && (
                         <span title="Screenshot included in download" className="flex-shrink-0 text-slate-400">
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
