@@ -13,6 +13,7 @@ import { createDevice, checkPairingStatus, expirePairingCode, createChild, delet
 interface UiDeviceSettings {
   blockedApps: string[];
   blockedCategories: string[];
+  monitoredCategories: string[];
   blockedDomains: string[];
   schedule: DbDeviceSchedule | null;
   contentMonitoring: string[];
@@ -85,6 +86,7 @@ function mapDbDevice(d: DbDevice, childInitials: string): UiDevice {
     settings: {
       blockedApps:        Array.isArray(d.settings_blocked_apps)        ? d.settings_blocked_apps        : [],
       blockedCategories:  Array.isArray(d.settings_blocked_categories)  ? d.settings_blocked_categories  : [],
+      monitoredCategories: Array.isArray(d.settings_monitored_categories) ? d.settings_monitored_categories : [],
       blockedDomains:     Array.isArray(d.settings_blocked_domains)     ? d.settings_blocked_domains     : [],
       schedule:           d.settings_schedule ?? null,
       contentMonitoring:  Array.isArray(d.settings_content_monitoring)  ? d.settings_content_monitoring  : [],
@@ -391,6 +393,252 @@ function RePairModal({ deviceDbId, deviceName, homeId, onClose }: {
 
 // ── Device Control Panel ──────────────────────────────────────────────────────
 
+type CategoryMode = "off" | "monitor" | "block";
+
+function MonitoringPanel({
+  device,
+  onClose,
+  onSettingsSaved,
+}: {
+  device: UiDevice;
+  onClose: () => void;
+  onSettingsSaved: (patch: Partial<Record<string, unknown>>) => void;
+}) {
+  const initialModes = () => {
+    const modes: Record<string, CategoryMode> = {};
+    WEB_CATEGORIES.forEach((cat) => {
+      if (device.settings.blockedCategories.includes(cat.id)) modes[cat.id] = "block";
+      else if (device.settings.monitoredCategories.includes(cat.id)) modes[cat.id] = "monitor";
+      else modes[cat.id] = "off";
+    });
+    return modes;
+  };
+
+  const [categoryModes, setCategoryModes] = useState<Record<string, CategoryMode>>(initialModes);
+  const [categoriesSaved, setCategoriesSaved] = useState(false);
+
+  const [blockedApps, setBlockedApps] = useState<string[]>(device.settings.blockedApps);
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
+  const [appSearch, setAppSearch] = useState("");
+  const sectionLabel = "text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3";
+  const dividerSection = "border-t border-slate-100 pt-5 mt-5";
+
+  function setCatMode(id: string, mode: CategoryMode) {
+    setCategoryModes((prev) => ({ ...prev, [id]: mode }));
+  }
+
+  async function handleSaveCategories() {
+    const blocked = WEB_CATEGORIES.filter((c) => categoryModes[c.id] === "block").map((c) => c.id);
+    const monitored = WEB_CATEGORIES.filter((c) => categoryModes[c.id] === "monitor").map((c) => c.id);
+    await saveDeviceSettings(device.dbId, {
+      settings_blocked_categories: blocked,
+      settings_monitored_categories: monitored,
+    });
+    onSettingsSaved({ settings_blocked_categories: blocked, settings_monitored_categories: monitored });
+    setCategoriesSaved(true);
+    setTimeout(() => setCategoriesSaved(false), 2000);
+  }
+
+  function toggleAppSelect(name: string) {
+    setSelectedApps((prev) => prev.includes(name) ? prev.filter((a) => a !== name) : [...prev, name]);
+  }
+
+  function handleBlockSelectedApps() {
+    const newBlocked = [...blockedApps, ...selectedApps.filter((a) => !blockedApps.includes(a))];
+    setBlockedApps(newBlocked);
+    setSelectedApps([]);
+    saveDeviceSettings(device.dbId, { settings_blocked_apps: newBlocked });
+  }
+
+  const MODE_BUTTONS: { mode: CategoryMode; label: string; active: string; inactive: string }[] = [
+    { mode: "off",     label: "Off",     active: "bg-slate-500 text-white",   inactive: "bg-slate-100 text-slate-500 hover:bg-slate-200" },
+    { mode: "monitor", label: "Monitor", active: "bg-amber-500 text-white",   inactive: "bg-slate-100 text-slate-500 hover:bg-slate-200" },
+    { mode: "block",   label: "Block",   active: "bg-red-600 text-white",     inactive: "bg-slate-100 text-slate-500 hover:bg-slate-200" },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="flex-1 bg-black/30" onClick={onClose} />
+      <div className="w-[23rem] bg-white h-full shadow-2xl flex flex-col border-l border-slate-200">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-violet-100 flex-shrink-0">
+              <svg className="w-5 h-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-slate-800 truncate">Monitoring Settings</h2>
+              <p className="text-xs text-slate-400 mt-0.5 truncate">{device.id}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors flex-shrink-0 ml-2">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+
+          {/* Info banner */}
+          <div className="mb-5 px-4 py-3 rounded-xl bg-violet-50 border border-violet-100">
+            <p className="text-xs text-violet-800 leading-relaxed">
+              <strong>Monitor</strong> allows access but sends an alert to staff. <strong>Block</strong> prevents access entirely.
+            </p>
+          </div>
+
+          {/* Category modes */}
+          <p className={sectionLabel}>Web Categories</p>
+          <div className="space-y-2 mb-4">
+            {WEB_CATEGORIES.map((cat) => {
+              const mode = categoryModes[cat.id] ?? "off";
+              return (
+                <div key={cat.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700">{cat.label}</p>
+                      <p className="text-[10px] text-slate-400">{cat.domains} domains</p>
+                    </div>
+                  </div>
+                  <div className="flex rounded-lg overflow-hidden border border-slate-200 w-full">
+                    {MODE_BUTTONS.map(({ mode: m, label, active, inactive }) => (
+                      <button
+                        key={m}
+                        onClick={() => setCatMode(cat.id, m)}
+                        className={`flex-1 py-1 text-[11px] font-semibold transition-colors ${mode === m ? active : inactive}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={handleSaveCategories}
+            className={`w-full mb-2 px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
+              categoriesSaved ? "bg-emerald-500 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
+          >
+            {categoriesSaved ? "Saved!" : "Save Category Settings"}
+          </button>
+
+          {/* App Blocking */}
+          <div className={dividerSection}>
+            <p className={sectionLabel}>App Blocking</p>
+
+            {blockedApps.length > 0 && (
+              <div className="mb-4">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Currently Blocked</p>
+                <div className="space-y-1.5">
+                  {blockedApps.map((name) => {
+                    const info = APP_LIST.find((a) => a.name === name);
+                    return (
+                      <div key={name} className="flex items-center gap-2.5 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
+                        {info
+                          ? <AppAvatar app={info} />
+                          : <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-slate-300 text-white text-[10px] font-bold">{name[0]}</span>
+                        }
+                        <span className="flex-1 text-xs font-medium text-slate-700 truncate">{name}</span>
+                        {info && (
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${CATEGORY_BADGE[info.category]}`}>
+                            {info.category}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => {
+                            const newBlocked = blockedApps.filter((a) => a !== name);
+                            setBlockedApps(newBlocked);
+                            saveDeviceSettings(device.dbId, { settings_blocked_apps: newBlocked });
+                          }}
+                          className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0 ml-1"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Block Apps</p>
+            {selectedApps.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {selectedApps.map((name) => {
+                  const info = APP_LIST.find((a) => a.name === name)!;
+                  return (
+                    <span key={name} className="inline-flex items-center gap-1 pl-1 pr-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[11px] font-medium">
+                      <AppAvatar app={info} size="sm" />
+                      {name}
+                      <button onClick={() => toggleAppSelect(name)} className="ml-0.5 text-blue-400 hover:text-blue-700">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="relative mb-1">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={appSearch}
+                onChange={(e) => setAppSearch(e.target.value)}
+                placeholder="Search apps..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs text-slate-700 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+              />
+            </div>
+
+            <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
+              {APP_LIST.filter((app) => !blockedApps.includes(app.name) && app.name.toLowerCase().includes(appSearch.toLowerCase())).map((app) => {
+                const checked = selectedApps.includes(app.name);
+                return (
+                  <button
+                    key={`${app.name}-${app.category}`}
+                    type="button"
+                    onClick={() => toggleAppSelect(app.name)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${checked ? "bg-blue-50" : "hover:bg-slate-50"}`}
+                  >
+                    <AppAvatar app={app} />
+                    <span className="flex-1 text-xs font-medium text-slate-700 truncate">{app.name}</span>
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${CATEGORY_BADGE[app.category]}`}>{app.category}</span>
+                    <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${checked ? "bg-blue-600 border-blue-600" : "border-slate-300"}`}>
+                      {checked && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedApps.length > 0 && (
+              <button
+                onClick={handleBlockSelectedApps}
+                className="mt-2.5 w-full px-4 py-2 text-xs font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Block {selectedApps.length} App{selectedApps.length > 1 ? "s" : ""}
+              </button>
+            )}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DeviceControlPanel({
   device,
   homeId,
@@ -422,37 +670,7 @@ function DeviceControlPanel({
   const [startTime, setStartTime] = useState(device.settings.schedule?.start ?? "21:00");
   const [endTime, setEndTime]     = useState(device.settings.schedule?.end   ?? "07:00");
   const [days, setDays]           = useState<boolean[]>(device.settings.schedule?.days ?? [true, true, true, true, true, true, true]);
-  const [scheduleSaved,    setScheduleSaved]    = useState(false);
-  const [categoriesSaved,  setCategoriesSaved]  = useState(false);
-  const [monitoringSaved,  setMonitoringSaved]  = useState(false);
-
-  // Blocked apps — initialised from persisted settings
-  const [blockedApps, setBlockedApps]   = useState<string[]>(device.settings.blockedApps);
-  const [selectedApps, setSelectedApps] = useState<string[]>([]);
-  const [appSearch, setAppSearch]       = useState("");
-
-  // Blocked websites — initialised from persisted settings
-  const [blockedCategories, setBlockedCategories] = useState<string[]>(device.settings.blockedCategories);
-  const [customDomains, setCustomDomains]         = useState<string[]>(device.settings.blockedDomains);
-  const [domainInput, setDomainInput]             = useState("");
-
-  // Content monitoring — initialised from persisted settings
-  const [contentMonitoring, setContentMonitoring] = useState<string[]>(device.settings.contentMonitoring);
-
-  useEffect(() => {
-    onSetWebRestrictions(device.dbId, blockedCategories.length > 0 || customDomains.length > 0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blockedCategories, customDomains]);
-
-  function handleAddDomain() {
-    const d = domainInput.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-    if (d && !customDomains.includes(d)) {
-      const newDomains = [...customDomains, d];
-      setCustomDomains(newDomains);
-      saveDeviceSettings(device.dbId, { settings_blocked_domains: newDomains });
-    }
-    setDomainInput("");
-  }
+  const [scheduleSaved, setScheduleSaved] = useState(false);
 
   // Location
   const [locationLoading, setLocationLoading] = useState(false);
@@ -468,19 +686,6 @@ function DeviceControlPanel({
     saveDeviceSettings(device.dbId, {
       settings_schedule: { enabled: scheduleEnabled, start: startTime, end: endTime, days },
     });
-  }
-
-  function toggleAppSelect(name: string) {
-    setSelectedApps((prev) =>
-      prev.includes(name) ? prev.filter((a) => a !== name) : [...prev, name]
-    );
-  }
-
-  function handleBlockSelected() {
-    const newBlocked = [...blockedApps, ...selectedApps.filter((a) => !blockedApps.includes(a))];
-    setBlockedApps(newBlocked);
-    setSelectedApps([]);
-    saveDeviceSettings(device.dbId, { settings_blocked_apps: newBlocked });
   }
 
   function handleRequestLocation() {
@@ -699,328 +904,6 @@ function DeviceControlPanel({
                 </button>
               </div>
             )}
-          </div>
-
-          {/* ── BLOCKED APPS ── */}
-          <div className={dividerSection}>
-            <p className={sectionLabel}>Blocked Apps</p>
-
-            {/* Currently blocked list */}
-            {blockedApps.length > 0 && (
-              <div className="mb-4">
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Currently Blocked</p>
-                <div className="space-y-1.5">
-                  {blockedApps.map((name) => {
-                    const info = APP_LIST.find((a) => a.name === name);
-                    return (
-                      <div
-                        key={name}
-                        className="flex items-center gap-2.5 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100"
-                      >
-                        {info
-                          ? <AppAvatar app={info} />
-                          : <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-slate-300 text-white text-[10px] font-bold">{name[0]}</span>
-                        }
-                        <span className="flex-1 text-xs font-medium text-slate-700 truncate">{name}</span>
-                        {info && (
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${CATEGORY_BADGE[info.category]}`}>
-                            {info.category}
-                          </span>
-                        )}
-                        <button
-                          onClick={() => {
-                            const newBlocked = blockedApps.filter((a) => a !== name);
-                            setBlockedApps(newBlocked);
-                            saveDeviceSettings(device.dbId, { settings_blocked_apps: newBlocked });
-                          }}
-                          className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0 ml-1"
-                          title="Unblock"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Block apps picker */}
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Block Apps</p>
-
-            {/* Selected pills */}
-            {selectedApps.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {selectedApps.map((name) => {
-                  const info = APP_LIST.find((a) => a.name === name)!;
-                  return (
-                    <span
-                      key={name}
-                      className="inline-flex items-center gap-1 pl-1 pr-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[11px] font-medium"
-                    >
-                      <AppAvatar app={info} size="sm" />
-                      {name}
-                      <button
-                        onClick={() => toggleAppSelect(name)}
-                        className="ml-0.5 text-blue-400 hover:text-blue-700"
-                      >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Search */}
-            <div className="relative mb-1">
-              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                value={appSearch}
-                onChange={(e) => setAppSearch(e.target.value)}
-                placeholder="Search apps..."
-                className="w-full pl-8 pr-3 py-1.5 text-xs text-slate-700 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
-              />
-            </div>
-
-            {/* App list */}
-            <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
-              {APP_LIST
-                .filter(
-                  (app) =>
-                    !blockedApps.includes(app.name) &&
-                    app.name.toLowerCase().includes(appSearch.toLowerCase())
-                )
-                .map((app) => {
-                  const checked = selectedApps.includes(app.name);
-                  return (
-                    <button
-                      key={`${app.name}-${app.category}`}
-                      type="button"
-                      onClick={() => toggleAppSelect(app.name)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
-                        checked ? "bg-blue-50" : "hover:bg-slate-50"
-                      }`}
-                    >
-                      <AppAvatar app={app} />
-                      <span className="flex-1 text-xs font-medium text-slate-700 truncate">{app.name}</span>
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${CATEGORY_BADGE[app.category]}`}>
-                        {app.category}
-                      </span>
-                      <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
-                        checked ? "bg-blue-600 border-blue-600" : "border-slate-300"
-                      }`}>
-                        {checked && (
-                          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              {APP_LIST.filter(
-                (app) =>
-                  !blockedApps.includes(app.name) &&
-                  app.name.toLowerCase().includes(appSearch.toLowerCase())
-              ).length === 0 && (
-                <p className="text-xs text-slate-400 text-center py-4">No apps match your search</p>
-              )}
-            </div>
-
-            {selectedApps.length > 0 && (
-              <button
-                onClick={handleBlockSelected}
-                className="mt-2.5 w-full px-4 py-2 text-xs font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Block {selectedApps.length} App{selectedApps.length > 1 ? "s" : ""}
-              </button>
-            )}
-          </div>
-
-          {/* ── BLOCKED WEBSITES ── */}
-          <div className={dividerSection}>
-            <p className={sectionLabel}>Blocked Websites</p>
-
-            {/* Category toggles */}
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Category Blocking</p>
-            <div className="space-y-1.5 mb-4">
-              {WEB_CATEGORIES.map((cat) => {
-                const active = blockedCategories.includes(cat.id);
-                return (
-                  <div
-                    key={cat.id}
-                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-colors ${
-                      active ? "bg-red-50 border-red-200" : "bg-slate-50 border-slate-100"
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-semibold ${active ? "text-red-700" : "text-slate-700"}`}>
-                        {cat.label}
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{cat.domains} domains</p>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setBlockedCategories((prev) =>
-                          active ? prev.filter((c) => c !== cat.id) : [...prev, cat.id]
-                        )
-                      }
-                      className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-                        active ? "bg-red-500" : "bg-slate-200"
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition duration-200 ${
-                          active ? "translate-x-3" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={async () => {
-                await saveDeviceSettings(device.dbId, { settings_blocked_categories: blockedCategories });
-                onSettingsSaved({ settings_blocked_categories: blockedCategories });
-                setCategoriesSaved(true);
-                setTimeout(() => setCategoriesSaved(false), 2000);
-              }}
-              className={`w-full mb-4 px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
-                categoriesSaved ? "bg-emerald-500 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
-              }`}
-            >
-              {categoriesSaved ? "Saved!" : "Save Category Filters"}
-            </button>
-
-            {/* Custom domain blocking */}
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Block Specific Website</p>
-
-            {/* Custom domain pills */}
-            {customDomains.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {customDomains.map((domain) => (
-                  <span
-                    key={domain}
-                    className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-[11px] font-medium"
-                  >
-                    {domain}
-                    <button
-                      onClick={() => {
-                        const newDomains = customDomains.filter((d) => d !== domain);
-                        setCustomDomains(newDomains);
-                        saveDeviceSettings(device.dbId, { settings_blocked_domains: newDomains });
-                      }}
-                      className="text-red-300 hover:text-red-600 transition-colors ml-0.5"
-                      title="Remove"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Domain input */}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={domainInput}
-                onChange={(e) => setDomainInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddDomain(); } }}
-                placeholder="e.g. example.com"
-                className="flex-1 px-3 py-1.5 text-xs text-slate-700 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white placeholder-slate-400"
-              />
-              <button
-                onClick={handleAddDomain}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Block
-              </button>
-            </div>
-          </div>
-
-          {/* ── CONTENT MONITORING ── */}
-          <div className={dividerSection}>
-            <p className={sectionLabel}>Content Monitoring</p>
-            <div className="space-y-1.5">
-              {[
-                {
-                  id: "messaging",
-                  label: "Monitor Messaging Apps",
-                  description: "Monitors WhatsApp, Snapchat, Telegram, and Instagram DMs for flagged content",
-                },
-                {
-                  id: "keywords",
-                  label: "Keyword Alerting",
-                  description: "Alerts on self-harm, grooming, drug references, and explicit content keywords",
-                },
-                {
-                  id: "screenshot",
-                  label: "Screenshot on Detection",
-                  description: "Captures a screenshot automatically when flagged content is detected",
-                },
-                {
-                  id: "nudity",
-                  label: "Alert on Nudity Detection",
-                  description: "Uses on-device AI to detect and alert on nudity in images or videos",
-                },
-              ].map((item) => {
-                const active = contentMonitoring.includes(item.id);
-                return (
-                  <div
-                    key={item.id}
-                    className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg border border-slate-100 bg-slate-50"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-slate-700">{item.label}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{item.description}</p>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setContentMonitoring((prev) =>
-                          active ? prev.filter((c) => c !== item.id) : [...prev, item.id]
-                        )
-                      }
-                      className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none mt-0.5 ${
-                        active ? "bg-blue-600" : "bg-slate-200"
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition duration-200 ${
-                          active ? "translate-x-3" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={async () => {
-                await saveDeviceSettings(device.dbId, { settings_content_monitoring: contentMonitoring });
-                onSettingsSaved({ settings_content_monitoring: contentMonitoring });
-                setMonitoringSaved(true);
-                setTimeout(() => setMonitoringSaved(false), 2000);
-              }}
-              className={`mt-2 w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
-                monitoringSaved ? "bg-emerald-500 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
-              }`}
-            >
-              {monitoringSaved ? "Saved!" : "Save Monitoring Settings"}
-            </button>
           </div>
 
           {/* ── LOCATION ── */}
@@ -1814,6 +1697,7 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
   const [addDeviceFor,    setAddDeviceFor]    = useState<UiChild | null>(null);
   const [editProfileFor,  setEditProfileFor]  = useState<UiChild | null>(null);
   const [controlDeviceId, setControlDeviceId] = useState<string | null>(null); // stores dbId (UUID)
+  const [monitoringDeviceId, setMonitoringDeviceId] = useState<string | null>(null);
 
   // Local status overrides — updated by Pause/Resume in DeviceControlPanel
   const [deviceStatuses, setDeviceStatuses] = useState<Record<string, DeviceStatus>>({});
@@ -1848,6 +1732,10 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
 
   const controlDevice = controlDeviceId
     ? homeChildren.flatMap((c) => c.devices).find((d) => d.dbId === controlDeviceId) ?? null
+    : null;
+
+  const monitoringDevice = monitoringDeviceId
+    ? homeChildren.flatMap((c) => c.devices).find((d) => d.dbId === monitoringDeviceId) ?? null
     : null;
 
   // Derive tamper events from alerts with category = 'tamper', keyed by device UUID
@@ -1994,10 +1882,28 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
                       <span className="text-slate-400">{device.lastSeen}</span>
                       <span className="text-slate-300">·</span>
                       <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newStatus = effectiveStatus === "restricted" ? "online" : "restricted";
+                          handleSetStatus(device.dbId, newStatus);
+                        }}
+                        className={`font-semibold transition-colors ${effectiveStatus === "restricted" ? "text-emerald-600 hover:text-emerald-700" : "text-amber-600 hover:text-amber-700"}`}
+                      >
+                        {effectiveStatus === "restricted" ? "Resume" : "Pause"}
+                      </button>
+                      <span className="text-slate-300">·</span>
+                      <button
                         onClick={() => setControlDeviceId(device.dbId)}
                         className={`font-semibold transition-colors ${hasTamper ? "text-red-600 hover:text-red-700" : "text-blue-600 hover:text-blue-700"}`}
                       >
                         Manage
+                      </button>
+                      <span className="text-slate-300">·</span>
+                      <button
+                        onClick={() => setMonitoringDeviceId(device.dbId)}
+                        className="font-semibold text-violet-600 hover:text-violet-700 transition-colors"
+                      >
+                        Monitoring
                       </button>
                     </div>
                   );
@@ -2045,6 +1951,22 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
         />
       )}
       {editProfileFor && <EditProfilePanel child={editProfileFor} onClose={() => setEditProfileFor(null)} keyWorkerOptions={keyWorkerOptions} />}
+      {monitoringDevice && (
+        <MonitoringPanel
+          device={monitoringDevice}
+          onClose={() => setMonitoringDeviceId(null)}
+          onSettingsSaved={(patch) => {
+            setLocalChildren((prev) =>
+              prev.map((c) => ({
+                ...c,
+                devices: c.devices.map((d) =>
+                  d.id === monitoringDevice.dbId ? { ...d, ...patch } : d
+                ),
+              }))
+            );
+          }}
+        />
+      )}
       {controlDevice  && (
         <DeviceControlPanel
           device={controlDevice}

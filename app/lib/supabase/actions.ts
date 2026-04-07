@@ -372,6 +372,7 @@ export async function saveDeviceSettings(
   patch: {
     settings_blocked_apps?: string[];
     settings_blocked_categories?: string[];
+    settings_monitored_categories?: string[];
     settings_blocked_domains?: string[];
     settings_schedule?: { enabled: boolean; start: string; end: string; days: boolean[] } | null;
     settings_content_monitoring?: string[];

@@ -83,6 +83,7 @@ export interface DbDevice {
   created_at: string;
   settings_blocked_apps: string[];
   settings_blocked_categories: string[];
+  settings_monitored_categories: string[] | null;
   settings_blocked_domains: string[];
   settings_schedule: DbDeviceSchedule | null;
   settings_content_monitoring: string[];
