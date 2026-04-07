@@ -420,6 +420,8 @@ function MonitoringPanel({
   const [blockedApps, setBlockedApps] = useState<string[]>(device.settings.blockedApps);
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [appSearch, setAppSearch] = useState("");
+  const [contentMonitoring, setContentMonitoring] = useState<string[]>(device.settings.contentMonitoring);
+  const [monitoringSaved, setMonitoringSaved] = useState(false);
   const sectionLabel = "text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3";
   const dividerSection = "border-t border-slate-100 pt-5 mt-5";
 
@@ -631,6 +633,56 @@ function MonitoringPanel({
                 Block {selectedApps.length} App{selectedApps.length > 1 ? "s" : ""}
               </button>
             )}
+          </div>
+
+          {/* Content Monitoring */}
+          <div className={dividerSection}>
+            <p className={sectionLabel}>Content Monitoring</p>
+            <div className="space-y-1.5">
+              {([
+                { id: "messaging",  label: "Monitor Messaging Apps",    description: "Monitors WhatsApp, Snapchat, Telegram & Instagram DMs for flagged content" },
+                { id: "keywords",   label: "Keyword Alerting",           description: "Alerts on self-harm, grooming, drug references and explicit content keywords" },
+                { id: "screenshot", label: "Screenshot on Detection",    description: "Captures a screenshot automatically when flagged content is detected" },
+                { id: "nudity",     label: "Alert on Nudity Detection",  description: "Uses on-device AI to detect and alert on nudity in images or videos" },
+              ] as { id: string; label: string; description: string }[]).map((item) => {
+                const active = contentMonitoring.includes(item.id);
+                return (
+                  <div key={item.id} className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg border border-slate-100 bg-slate-50">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-700">{item.label}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{item.description}</p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setContentMonitoring((prev) =>
+                          active ? prev.filter((c) => c !== item.id) : [...prev, item.id]
+                        )
+                      }
+                      className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none mt-0.5 ${
+                        active ? "bg-blue-600" : "bg-slate-200"
+                      }`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition duration-200 ${
+                        active ? "translate-x-3" : "translate-x-0"
+                      }`} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              onClick={async () => {
+                await saveDeviceSettings(device.dbId, { settings_content_monitoring: contentMonitoring });
+                onSettingsSaved({ settings_content_monitoring: contentMonitoring });
+                setMonitoringSaved(true);
+                setTimeout(() => setMonitoringSaved(false), 2000);
+              }}
+              className={`mt-3 w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
+                monitoringSaved ? "bg-emerald-500 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
+              }`}
+            >
+              {monitoringSaved ? "Saved!" : "Save Monitoring Settings"}
+            </button>
           </div>
 
         </div>
