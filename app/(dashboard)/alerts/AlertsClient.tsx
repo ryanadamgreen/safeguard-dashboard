@@ -37,6 +37,9 @@ function formatAlertDescription(alertType: string | null, raw: string | null): s
     const domain = desc.replace(/^Blocked website attempt:\s*/i, "").trim();
     return `Site blocked: ${domain}`;
   }
+  if (alertType === "content_flagged") {
+    return desc; // already well-formatted from Android
+  }
   return desc;
 }
 
@@ -314,13 +317,23 @@ function AlertDetailModal({
 
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Description</p>
-            <p className="text-sm text-slate-700 leading-relaxed">{alert.description}</p>
+            <p className="text-sm text-slate-700 leading-relaxed">
+              {alert.description.includes("'") ? (
+                <>
+                  {alert.description.split(/('.*?')/).map((part, i) =>
+                    part.startsWith("'") && part.endsWith("'") ? (
+                      <span key={i} className="font-semibold text-red-600 bg-red-50 px-1 rounded">{part}</span>
+                    ) : part
+                  )}
+                </>
+              ) : alert.description}
+            </p>
           </div>
 
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Trigger Details</p>
             <div className="bg-slate-50 rounded-lg border border-slate-100 px-4 py-3">
-              <p className="text-xs text-slate-600 leading-relaxed">{alert.triggerContent}</p>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">{alert.triggerContent}</p>
             </div>
           </div>
 
