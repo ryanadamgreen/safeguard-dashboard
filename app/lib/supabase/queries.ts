@@ -56,10 +56,10 @@ export interface DbStaff {
 }
 
 export interface DbDeviceSchedule {
-  enabled: boolean;
-  start: string;  // "HH:MM"
-  end: string;    // "HH:MM"
-  days: boolean[]; // [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
+  bedtime_enabled: boolean;
+  bedtime_start: string;  // "HH:MM"
+  bedtime_end: string;    // "HH:MM"
+  bedtime_days: string[]; // e.g. ["Mon", "Tue", "Wed", "Thu", "Fri"]
 }
 
 export interface DbDevice {

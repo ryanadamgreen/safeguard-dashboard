@@ -75,7 +75,6 @@ const SEVERITY_KEY = [
       "Unknown contact messaging",
       "Drug/alcohol references",
       "Suspicious contact pattern",
-      "Location deviation",
     ],
   },
   {
@@ -83,7 +82,7 @@ const SEVERITY_KEY = [
     color: "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-600/20",
     items: [
       "Late night usage",
-      "App install attempt",
+      "App installed",
       "Social media flagged",
       "Blocked website attempt",
     ],
@@ -92,7 +91,6 @@ const SEVERITY_KEY = [
     label: "Low",
     color: "bg-green-50 text-green-700 ring-1 ring-green-600/20",
     items: [
-      "Screen time exceeded",
       "Battery low",
       "Device offline 30+ mins",
     ],

@@ -718,10 +718,11 @@ function DeviceControlPanel({
   const [removeError, setRemoveError] = useState("");
 
   // Schedule — initialised from persisted settings
-  const [scheduleEnabled, setScheduleEnabled] = useState(device.settings.schedule?.enabled ?? false);
-  const [startTime, setStartTime] = useState(device.settings.schedule?.start ?? "21:00");
-  const [endTime, setEndTime]     = useState(device.settings.schedule?.end   ?? "07:00");
-  const [days, setDays]           = useState<boolean[]>(device.settings.schedule?.days ?? [true, true, true, true, true, true, true]);
+  const savedDayNames = device.settings.schedule?.bedtime_days ?? [];
+  const [scheduleEnabled, setScheduleEnabled] = useState(device.settings.schedule?.bedtime_enabled ?? false);
+  const [startTime, setStartTime] = useState(device.settings.schedule?.bedtime_start ?? "21:00");
+  const [endTime, setEndTime]     = useState(device.settings.schedule?.bedtime_end   ?? "07:00");
+  const [days, setDays]           = useState<boolean[]>(DAYS.map((d) => savedDayNames.includes(d)));
   const [scheduleSaved, setScheduleSaved] = useState(false);
 
   // Location
@@ -735,8 +736,9 @@ function DeviceControlPanel({
   function handleSaveSchedule() {
     setScheduleSaved(true);
     setTimeout(() => setScheduleSaved(false), 2000);
+    const bedtime_days = DAYS.filter((_, i) => days[i]);
     saveDeviceSettings(device.dbId, {
-      settings_schedule: { enabled: scheduleEnabled, start: startTime, end: endTime, days },
+      settings_schedule: { bedtime_enabled: scheduleEnabled, bedtime_start: startTime, bedtime_end: endTime, bedtime_days },
     });
   }
 
@@ -885,8 +887,9 @@ function DeviceControlPanel({
                 onClick={() => {
                   const newEnabled = !scheduleEnabled;
                   setScheduleEnabled(newEnabled);
+                  const bedtime_days = DAYS.filter((_, i) => days[i]);
                   saveDeviceSettings(device.dbId, {
-                    settings_schedule: { enabled: newEnabled, start: startTime, end: endTime, days },
+                    settings_schedule: { bedtime_enabled: newEnabled, bedtime_start: startTime, bedtime_end: endTime, bedtime_days },
                   });
                 }}
                 className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${

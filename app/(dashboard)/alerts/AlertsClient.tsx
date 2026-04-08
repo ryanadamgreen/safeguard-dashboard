@@ -57,6 +57,10 @@ function friendlyAlertType(raw: string, description?: string): string {
     battery_low:      "Battery Low",
     device_offline:   "Device Offline",
     tamper:           "Tamper Detected",
+    app_installed:                 "App installed",
+    late_night_usage:              "Late night usage",
+    unknown_contact_messaging:     "Unknown contact messaging",
+    suspicious_contact_pattern:    "Suspicious contact pattern",
   };
   return map[raw] ?? raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }

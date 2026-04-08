@@ -374,7 +374,7 @@ export async function saveDeviceSettings(
     settings_blocked_categories?: string[];
     settings_monitored_categories?: string[];
     settings_blocked_domains?: string[];
-    settings_schedule?: { enabled: boolean; start: string; end: string; days: boolean[] } | null;
+    settings_schedule?: { bedtime_enabled: boolean; bedtime_start: string; bedtime_end: string; bedtime_days: string[] } | null;
     settings_content_monitoring?: string[];
   }
 ): Promise<{ error: string | null }> {

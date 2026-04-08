@@ -306,6 +306,34 @@ export async function sendTamperEmail(
   return data;
 }
 
+export async function sendOtpEmail(
+  to: string,
+  code: string,
+  name: string
+): Promise<void> {
+  await resend.emails.send({
+    from: FROM_ADDRESS,
+    to,
+    subject: "Your SafeGuard verification code",
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#f8fafc;border-radius:12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px">
+          <div style="width:36px;height:36px;background:#2563eb;border-radius:8px;display:flex;align-items:center;justify-content:center">
+            <span style="color:white;font-size:18px">🛡</span>
+          </div>
+          <span style="font-size:18px;font-weight:700;color:#0f172a">SafeGuard</span>
+        </div>
+        <h2 style="font-size:20px;font-weight:700;color:#0f172a;margin:0 0 8px">Verification code</h2>
+        <p style="color:#475569;font-size:14px;margin:0 0 24px">Hi ${esc(name)}, use the code below to complete your sign-in. It expires in 10 minutes.</p>
+        <div style="background:white;border:2px solid #e2e8f0;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
+          <span style="font-size:36px;font-weight:800;letter-spacing:12px;color:#0f172a;font-family:monospace">${esc(code)}</span>
+        </div>
+        <p style="color:#94a3b8;font-size:12px;margin:0">If you didn't request this code, someone may be attempting to access your account. Contact your administrator immediately.</p>
+      </div>
+    `,
+  });
+}
+
 export async function sendTestEmail(to: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
