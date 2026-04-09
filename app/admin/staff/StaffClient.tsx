@@ -52,6 +52,7 @@ function FilterPill({ label, onRemove }: { label: string; onRemove: () => void }
 interface AddForm {
   name: string;
   email: string;
+  phone: string;
   jobTitle: JobTitle | "";
   role: string;
   homeIds: string[];
@@ -69,7 +70,7 @@ function AddStaffModal({
   dbOrgs: DbOrganisation[];
 }) {
   const [form, setForm] = useState<AddForm>({
-    name: "", email: "", jobTitle: "Support Worker", role: "home_staff", homeIds: [],
+    name: "", email: "", phone: "", jobTitle: "Support Worker", role: "home_staff", homeIds: [],
   });
   const [errors, setErrors] = useState<{ name?: string; email?: string; homeIds?: string }>({});
   const [submitError, setSubmitError] = useState("");
@@ -95,6 +96,7 @@ function AddStaffModal({
       const result = await inviteStaff({
         full_name: form.name.trim(),
         email: form.email.trim(),
+        phone: form.phone.trim() || undefined,
         role: form.role,
         job_title: form.role === "home_staff" ? (form.jobTitle as string) : undefined,
         home_ids: form.homeIds,
@@ -107,6 +109,7 @@ function AddStaffModal({
         id: result.id ?? crypto.randomUUID(),
         full_name: form.name.trim(),
         email: form.email.trim(),
+        phone: form.phone.trim() || null,
         role: form.role,
         job_title: form.role === "home_staff" ? form.jobTitle as string : null,
         organisation_id: null,
@@ -160,6 +163,17 @@ function AddStaffModal({
               className={`w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 ${errors.email ? "border-red-400" : "border-slate-200"}`}
             />
             {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Phone Number</label>
+            <input
+              type="tel" value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="e.g. 07700 900123"
+              className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            />
           </div>
 
           {/* System Role */}
@@ -305,7 +319,7 @@ function EditPanel({
     const homeIds = form.staff_homes.map(sh => sh.home_id);
     await updateStaff(
       form.id,
-      { full_name: form.full_name, email: form.email, role: form.role, job_title: form.job_title ?? undefined },
+      { full_name: form.full_name, email: form.email, phone: form.phone ?? undefined, role: form.role, job_title: form.job_title ?? undefined },
       homeIds
     );
     onSave(form);
@@ -341,6 +355,15 @@ function EditPanel({
             <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Email Address</label>
             <input type="email" value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Phone Number</label>
+            <input type="tel" value={form.phone ?? ""}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="e.g. 07700 900123"
               className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
             />
           </div>
@@ -647,11 +670,12 @@ export default function StaffClient({ dbStaff, dbHomes, dbOrgs }: Props) {
         <main className="flex-1 p-8">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-[2fr_1.4fr_1.8fr_1.8fr_1.6fr_1fr_1fr] gap-3 px-6 py-3 bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <div className="grid grid-cols-[2fr_1.4fr_1.8fr_1.8fr_1.4fr_1.6fr_1fr_1fr] gap-3 px-6 py-3 bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <span>Full Name</span>
               <span>Company</span>
               <span>Home(s) Assigned</span>
               <span>Email</span>
+              <span>Phone</span>
               <span>Job Title</span>
               <span>Status</span>
               <span>Actions</span>
@@ -664,7 +688,7 @@ export default function StaffClient({ dbStaff, dbHomes, dbOrgs }: Props) {
                 const homeNames = staffHomeNames(member);
                 const companies = staffOrgNames(member);
                 return (
-                  <div key={member.id} className="grid grid-cols-[2fr_1.4fr_1.8fr_1.8fr_1.6fr_1fr_1fr] gap-3 px-6 py-4 items-center hover:bg-slate-50/60 transition-colors">
+                  <div key={member.id} className="grid grid-cols-[2fr_1.4fr_1.8fr_1.8fr_1.4fr_1.6fr_1fr_1fr] gap-3 px-6 py-4 items-center hover:bg-slate-50/60 transition-colors">
                     {/* Name */}
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold flex-shrink-0 bg-blue-100 text-blue-700">
@@ -702,6 +726,9 @@ export default function StaffClient({ dbStaff, dbHomes, dbOrgs }: Props) {
 
                     {/* Email */}
                     <p className="text-sm text-slate-600 truncate">{member.email}</p>
+
+                    {/* Phone */}
+                    <p className="text-sm text-slate-600">{member.phone ?? "—"}</p>
 
                     {/* Job title */}
                     <p className="text-sm text-slate-600">{member.job_title ?? "—"}</p>

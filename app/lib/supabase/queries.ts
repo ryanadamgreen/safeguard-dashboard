@@ -48,6 +48,7 @@ export interface DbStaff {
   id: string;
   full_name: string;
   email: string;
+  phone: string | null;
   job_title: string | null;
   role: string;
   organisation_id: string | null;

@@ -1772,10 +1772,11 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
                             <p className="text-sm text-slate-400 py-2">No staff assigned to this organisation.</p>
                           ) : (
                             <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-                              <div className="grid grid-cols-[2fr_1.5fr_1.8fr_1fr_1.4fr] gap-3 px-4 py-2 bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                              <div className="grid grid-cols-[2fr_1.5fr_1.8fr_1fr_1fr_1.4fr] gap-3 px-4 py-2 bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                 <span>Name</span>
                                 <span>Home(s)</span>
                                 <span>Email</span>
+                                <span>Phone</span>
                                 <span>Job Title</span>
                                 <span>Actions</span>
                               </div>
@@ -1785,7 +1786,7 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
                                     .map(sh => localHomes.find(h => h.id === sh.home_id)?.name)
                                     .filter(Boolean);
                                   return (
-                                    <div key={member.id} className="grid grid-cols-[2fr_1.5fr_1.8fr_1fr_1.4fr] gap-3 px-4 py-3 items-center text-sm">
+                                    <div key={member.id} className="grid grid-cols-[2fr_1.5fr_1.8fr_1fr_1fr_1.4fr] gap-3 px-4 py-3 items-center text-sm">
                                       <div className="flex items-center gap-2 min-w-0">
                                         <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
                                           {initials(member.full_name)}
@@ -1803,6 +1804,7 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
                                         ))}
                                       </div>
                                       <p className="text-xs text-slate-600 truncate">{member.email}</p>
+                                      <p className="text-xs text-slate-600">{member.phone ?? "—"}</p>
                                       <p className="text-xs text-slate-600">{member.job_title ?? "—"}</p>
                                       <div className="flex items-center gap-1.5">
                                         <button

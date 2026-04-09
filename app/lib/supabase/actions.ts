@@ -129,6 +129,7 @@ export async function deleteHome(id: string): Promise<{ error: string | null }> 
 export async function inviteStaff(data: {
   full_name: string;
   email: string;
+  phone?: string;
   role: string;
   job_title?: string;
   organisation_id?: string;
@@ -165,6 +166,7 @@ export async function inviteStaff(data: {
         id: authUserId,
         full_name: data.full_name,
         email: data.email,
+        phone: data.phone ?? null,
         role: data.role,
         job_title: data.job_title ?? null,
         organisation_id: data.organisation_id ?? null,
@@ -215,6 +217,7 @@ export async function updateStaff(
   data: Partial<{
     full_name: string;
     email: string;
+    phone: string;
     role: string;
     job_title: string;
   }>,
