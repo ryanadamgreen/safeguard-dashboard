@@ -77,24 +77,9 @@ export default function LoginPage() {
         return;
       }
 
-      const uid = data.user!.id;
-      setStaffId(uid);
-
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ staffId: uid, email: email.toLowerCase().trim() }),
-      });
-
-      if (!res.ok) {
-        setError("Failed to send verification code. Please try again.");
-        await supabase.auth.signOut();
-        setLoading(false);
-        return;
-      }
-
-      setStep("otp");
-      setResendCooldown(60);
+      // OTP temporarily disabled — skip straight to dashboard
+      // Re-enable by restoring the send-otp fetch and setStep("otp") below
+      window.location.replace("/dashboard"); return;
     } catch {
       setError("An unexpected error occurred. Please try again.");
     }
