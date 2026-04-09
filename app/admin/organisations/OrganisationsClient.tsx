@@ -1191,6 +1191,7 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-800 truncate">{org.name}</p>
                           <p className="text-xs text-slate-400 truncate">Since {formatDate(org.createdDate)}</p>
+                          {org.address && <p className="text-xs text-slate-400 truncate">{org.address}</p>}
                         </div>
                       </div>
 
@@ -1297,19 +1298,18 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
                           <p className="text-sm text-slate-400 py-2">No homes registered for this organisation.</p>
                         ) : (
                           <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-                            <div className="grid grid-cols-[2fr_1fr_2fr_2fr_0.6fr_0.6fr_1fr_1.2fr] gap-3 px-4 py-2 bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                              <span>Home Name</span><span>SC/URN</span><span>Address</span>
+                            <div className="grid grid-cols-[2fr_1fr_2fr_0.6fr_0.6fr_1fr_1.2fr] gap-3 px-4 py-2 bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                              <span>Home Name</span><span>SC/URN</span>
                               <span>Responsible Individual</span><span>Children</span><span>Staff</span><span>Status</span><span>Actions</span>
                             </div>
                             <div className="divide-y divide-slate-50">
                               {orgHomes.map((home) => (
-                                <div key={home.id} className="grid grid-cols-[2fr_1fr_2fr_2fr_0.6fr_0.6fr_1fr_1.2fr] gap-3 px-4 py-3 items-center text-sm">
+                                <div key={home.id} className="grid grid-cols-[2fr_1fr_2fr_0.6fr_0.6fr_1fr_1.2fr] gap-3 px-4 py-3 items-center text-sm">
                                   <div>
                                     <p className="font-medium text-slate-800">{home.name}</p>
                                     <p className="text-xs text-slate-400">{home.email}</p>
                                   </div>
                                   <p className="font-mono text-slate-600 text-xs">{home.sc_urn}</p>
-                                  <p className="text-slate-600 text-xs truncate">{home.address}</p>
                                   <p className="text-slate-700 font-medium text-xs">{home.responsible_individual}</p>
                                   <p className="text-slate-700 font-medium">0</p>
                                   <p className="text-slate-700 font-medium">{dbStaff.filter(s => s.staff_homes.some(sh => sh.home_id === home.id)).length}</p>
