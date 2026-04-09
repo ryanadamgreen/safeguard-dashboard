@@ -21,27 +21,53 @@ export default function SetPasswordPage() {
   const [error, setError] = useState("");
   const sessionEstablished = useRef(false);
 
-  // ── Extract invite tokens from URL hash and establish session ────────────
+  // ── Extract tokens from URL and establish session ──────────────────────
+  // Handles two flows:
+  //   1. Invite link  — hash contains #access_token=...&type=invite
+  //   2. Password reset — query string contains ?code=... (PKCE flow)
   useEffect(() => {
     if (sessionEstablished.current) return;
     sessionEstablished.current = true;
 
     const hash = window.location.hash;
-    console.log("[set-password] hash:", hash);
+    const search = window.location.search;
+    console.log("[set-password] hash:", hash, "search:", search);
 
-    const params = new URLSearchParams(hash.slice(1));
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
+    // ── PKCE recovery flow (password reset emails) ───────────────────────
+    const searchParams = new URLSearchParams(search);
+    const code = searchParams.get("code");
+    if (code) {
+      supabase.auth
+        .exchangeCodeForSession(code)
+        .then(({ data: { session }, error: sessionErr }) => {
+          if (sessionErr || !session) {
+            console.error("[set-password] exchangeCodeForSession error:", sessionErr?.message);
+            setError("This reset link has expired or already been used. Please request a new one.");
+            return;
+          }
+          console.log("[set-password] recovery session established for", session.user.email);
+          history.replaceState(null, "", window.location.pathname);
+          setSessionReady(true);
+        });
+      return;
+    }
+
+    // ── Hash token flow (invite emails) ─────────────────────────────────
+    const hashParams = new URLSearchParams(hash.slice(1));
+    const accessToken = hashParams.get("access_token");
+    const refreshToken = hashParams.get("refresh_token");
 
     if (!accessToken || !refreshToken) {
-      // No hash tokens — user may have navigated here directly after a prior
-      // session was already established; check if a session exists.
+      // No tokens — check if a session already exists (e.g. navigated here directly
+      // or arrived after OTP login which already established a session)
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session) {
           console.log("[set-password] existing session found");
           setSessionReady(true);
         } else {
-          setError("Invalid or expired invite link. Please ask an admin to resend the invitation.");
+          // No session and no tokens — still allow the form but show error on submit
+          setSessionReady(true);
+          setError("No active session found. Please use the reset link from your email or sign in first.");
         }
       });
       return;
@@ -56,7 +82,6 @@ export default function SetPasswordPage() {
           return;
         }
         console.log("[set-password] session established for", session.user.email);
-        // Clear the hash so tokens aren't visible in the URL bar
         history.replaceState(null, "", window.location.pathname);
         setSessionReady(true);
       });
