@@ -135,6 +135,18 @@ export default function LoginPage() {
     });
   }
 
+  async function handleUseDifferentAccount() {
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // ignore signOut errors — we still want to return to credentials
+    }
+    setStep("credentials");
+    setOtpCode("");
+    setError("");
+    setStaffId("");
+  }
+
   // ── Step 3: Forgot password ───────────────────────────────────────────────
   async function handleForgotPassword(e: React.FormEvent) {
     e.preventDefault();
@@ -353,12 +365,7 @@ export default function LoginPage() {
                 </button>
 
                 <button
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                    setStep("credentials");
-                    setOtpCode("");
-                    setError("");
-                  }}
+                  onClick={handleUseDifferentAccount}
                   className="text-xs text-slate-500 hover:text-slate-400 transition-colors"
                 >
                   ← Use a different account
