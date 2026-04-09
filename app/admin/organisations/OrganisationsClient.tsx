@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { type DbOrganisation, type DbHome, type DbStaff } from "../../lib/supabase/queries";
-import { createHome, updateHome } from "../../lib/supabase/actions";
+import { createHome, updateHome, inviteStaff, updateStaff } from "../../lib/supabase/actions";
 
 // ─── Local constants ──────────────────────────────────────────────────────────
 
@@ -77,6 +77,32 @@ function FilterPill({ label, onRemove }: { label: string; onRemove: () => void }
       </button>
     </span>
   );
+}
+
+// ─── Staff helpers & constants ────────────────────────────────────────────────
+
+const JOB_TITLES = [
+  "Support Worker", "Senior Support Worker", "Team Leader",
+  "Deputy Manager", "Registered Manager", "Responsible Individual",
+  "Keyworker", "Night Staff",
+] as const;
+type JobTitle = typeof JOB_TITLES[number];
+
+const roleBadgeColors: Record<string, string> = {
+  home_staff:     "bg-blue-50 text-blue-700 ring-1 ring-blue-600/20",
+  readonly_staff: "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+  admin:          "bg-purple-50 text-purple-700 ring-1 ring-purple-600/20",
+};
+
+function roleDisplayName(role: string): string {
+  if (role === "home_staff") return "Home Staff";
+  if (role === "readonly_staff") return "Read-only";
+  if (role === "admin") return "Admin";
+  return role;
+}
+
+function initials(name: string): string {
+  return name.split(" ").filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
 // ─── Add / Edit Home modals (used within expanded org row) ───────────────────
@@ -282,6 +308,358 @@ function EditHomeModal({
           <button onClick={handleSave} disabled={loading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center gap-2">
             {loading && <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>}
             {loading ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Staff modals (used within expanded org row) ─────────────────────────────
+
+interface AddStaffForm {
+  name: string;
+  email: string;
+  jobTitle: JobTitle | "";
+  role: string;
+  homeIds: string[];
+}
+
+function AddStaffModal({
+  onClose,
+  onAdd,
+  dbHomes,
+  dbOrgs,
+}: {
+  onClose: () => void;
+  onAdd: (s: DbStaff) => void;
+  dbHomes: DbHome[];
+  dbOrgs: DbOrganisation[];
+}) {
+  const [form, setForm] = useState<AddStaffForm>({
+    name: "", email: "", jobTitle: "Support Worker", role: "home_staff", homeIds: [],
+  });
+  const [errors, setErrors] = useState<{ name?: string; email?: string; homeIds?: string }>({});
+  const [submitError, setSubmitError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  function toggleHome(id: string) {
+    setForm((f) => ({
+      ...f,
+      homeIds: f.homeIds.includes(id) ? f.homeIds.filter((x) => x !== id) : [...f.homeIds, id],
+    }));
+  }
+
+  async function handleSubmit() {
+    const e: typeof errors = {};
+    if (!form.name.trim())         e.name = "Required";
+    if (!form.email.trim())        e.email = "Required";
+    if (form.homeIds.length === 0) e.homeIds = "Assign at least one home";
+    if (Object.keys(e).length > 0) { setErrors(e); return; }
+
+    setSubmitError("");
+    setLoading(true);
+    try {
+      const result = await inviteStaff({
+        full_name: form.name.trim(),
+        email: form.email.trim(),
+        role: form.role,
+        job_title: form.role === "home_staff" ? (form.jobTitle as string) : undefined,
+        home_ids: form.homeIds,
+      });
+      if (result.error) { setSubmitError(result.error); return; }
+      onAdd({
+        id: result.id ?? crypto.randomUUID(),
+        full_name: form.name.trim(),
+        email: form.email.trim(),
+        role: form.role,
+        job_title: form.role === "home_staff" ? form.jobTitle as string : null,
+        organisation_id: null,
+        created_at: new Date().toISOString(),
+        staff_homes: form.homeIds.map(home_id => ({ home_id })),
+      });
+      onClose();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "An unexpected error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Add Staff Member</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Create a new staff account</p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4 max-h-[65vh] overflow-y-auto">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Full Name</label>
+            <input type="text" value={form.name}
+              onChange={(e) => { setForm({ ...form, name: e.target.value }); setErrors({ ...errors, name: undefined }); }}
+              placeholder="e.g. Jane Smith"
+              className={`w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 ${errors.name ? "border-red-400" : "border-slate-200"}`}
+            />
+            {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Email Address</label>
+            <input type="email" value={form.email}
+              onChange={(e) => { setForm({ ...form, email: e.target.value }); setErrors({ ...errors, email: undefined }); }}
+              placeholder="jane@home.org"
+              className={`w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 ${errors.email ? "border-red-400" : "border-slate-200"}`}
+            />
+            {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">System Role</label>
+            <select value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value, jobTitle: e.target.value === "home_staff" ? "Support Worker" : "" })}
+              className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            >
+              <option value="home_staff">Home Staff — full access</option>
+              <option value="readonly_staff">Read-only — view only</option>
+            </select>
+          </div>
+          {form.role === "home_staff" && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Job Title</label>
+              <select value={form.jobTitle}
+                onChange={(e) => setForm({ ...form, jobTitle: e.target.value as JobTitle })}
+                className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+              >
+                {JOB_TITLES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Assign to Home(s)</label>
+            <div className={`border rounded-lg overflow-hidden divide-y divide-slate-100 ${errors.homeIds ? "border-red-400" : "border-slate-200"}`}>
+              {dbHomes.map((home) => (
+                <label key={home.id} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors">
+                  <input type="checkbox" checked={form.homeIds.includes(home.id)}
+                    onChange={() => { toggleHome(home.id); setErrors({ ...errors, homeIds: undefined }); }}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">{home.name}</p>
+                    <p className="text-xs text-slate-400">{dbOrgs.find(o => o.id === home.organisation_id)?.name ?? ""} · {home.sc_urn ?? ""}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+            {errors.homeIds && <p className="text-xs text-red-500 mt-1">{errors.homeIds}</p>}
+          </div>
+        </div>
+        {submitError && (
+          <div className="mx-6 mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600">{submitError}</div>
+        )}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
+          <button onClick={onClose} disabled={loading} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50">Cancel</button>
+          <button onClick={handleSubmit} disabled={loading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center gap-2">
+            {loading && <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>}
+            {loading ? "Creating…" : "Create Account"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Reset2FAButton({ compact = false }: { compact?: boolean }) {
+  const [done, setDone] = useState(false);
+  if (compact) {
+    return (
+      <button onClick={(e) => { e.stopPropagation(); setDone(true); }} disabled={done}
+        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${done ? "text-emerald-600 bg-emerald-50 cursor-default" : "text-amber-600 bg-amber-50 hover:bg-amber-100"}`}>
+        {done ? "2FA Reset" : "Reset 2FA"}
+      </button>
+    );
+  }
+  return (
+    <button onClick={() => setDone(true)} disabled={done}
+      className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium border rounded-lg transition-colors ${done ? "text-emerald-600 bg-emerald-50 border-emerald-200 cursor-default" : "text-amber-600 bg-amber-50 border-amber-200 hover:bg-amber-100"}`}>
+      <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+      {done ? "2FA has been reset — user must re-enrol on next sign-in" : "Reset Two-Factor Authentication"}
+    </button>
+  );
+}
+
+function EditStaffPanel({
+  member,
+  onClose,
+  onSave,
+  dbHomes,
+  dbOrgs,
+}: {
+  member: DbStaff;
+  onClose: () => void;
+  onSave: (updated: DbStaff) => void;
+  dbHomes: DbHome[];
+  dbOrgs: DbOrganisation[];
+}) {
+  const [form, setForm] = useState({ ...member });
+
+  function toggleHome(id: string) {
+    setForm((f) => ({
+      ...f,
+      staff_homes: f.staff_homes.some(sh => sh.home_id === id)
+        ? f.staff_homes.filter(sh => sh.home_id !== id)
+        : [...f.staff_homes, { home_id: id }],
+    }));
+  }
+
+  async function handleSave() {
+    const homeIds = form.staff_homes.map(sh => sh.home_id);
+    await updateStaff(
+      form.id,
+      { full_name: form.full_name, email: form.email, role: form.role, job_title: form.job_title ?? undefined },
+      homeIds
+    );
+    onSave(form);
+    onClose();
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={onClose} />
+      <div className="fixed right-0 top-0 bottom-0 z-50 w-96 bg-white border-l border-slate-200 shadow-2xl flex flex-col">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Edit Staff Member</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{member.full_name}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Full Name</label>
+            <input type="text" value={form.full_name}
+              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+              className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Email Address</label>
+            <input type="email" value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">System Role</label>
+            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
+              className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400">
+              <option value="home_staff">Home Staff — full access</option>
+              <option value="readonly_staff">Read-only — view only</option>
+            </select>
+          </div>
+          {form.role === "home_staff" && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Job Title</label>
+              <select value={form.job_title ?? ""}
+                onChange={(e) => setForm({ ...form, job_title: e.target.value as JobTitle })}
+                className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400">
+                {JOB_TITLES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Assigned Home(s)</label>
+            <div className="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-100">
+              {dbHomes.map((home) => (
+                <label key={home.id} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors">
+                  <input type="checkbox"
+                    checked={form.staff_homes.some(sh => sh.home_id === home.id)}
+                    onChange={() => toggleHome(home.id)}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">{home.name}</p>
+                    <p className="text-xs text-slate-400">{dbOrgs.find(o => o.id === home.organisation_id)?.name ?? ""} · {home.sc_urn ?? ""}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="pt-2 border-t border-slate-100">
+            <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider">Account Actions</p>
+            <div className="space-y-2">
+              <button className="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
+                <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Send Password Reset Email
+              </button>
+              <Reset2FAButton />
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+          <button onClick={handleSave} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">Save Changes</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function DeleteConfirmDialog({
+  member,
+  onCancel,
+  onConfirm,
+}: {
+  member: DbStaff;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleDelete() {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/staff/${member.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error ?? "Failed to remove staff member."); setLoading(false); return; }
+      onConfirm();
+    } catch {
+      setError("An unexpected error occurred.");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-sm overflow-hidden">
+        <div className="px-6 py-5">
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 mx-auto mb-4">
+            <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h3 className="text-sm font-semibold text-slate-800 text-center">Remove Staff Member</h3>
+          <p className="text-sm text-slate-500 text-center mt-2">
+            Are you sure you want to remove <span className="font-medium text-slate-700">{member.full_name}</span>? Their account and all home assignments will be permanently deleted.
+          </p>
+          {error && <p className="mt-3 text-xs text-red-600 text-center bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
+          <button onClick={onCancel} disabled={loading} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50">Cancel</button>
+          <button onClick={handleDelete} disabled={loading} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60 flex items-center gap-2">
+            {loading && <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>}
+            {loading ? "Removing…" : "Remove"}
           </button>
         </div>
       </div>
@@ -845,6 +1223,10 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingHomeForOrg, setAddingHomeForOrg] = useState<Organisation | null>(null);
   const [editingHome, setEditingHome] = useState<DbHome | null>(null);
+  const [localStaff, setLocalStaff] = useState<DbStaff[]>(dbStaff);
+  const [addingStaffForOrg, setAddingStaffForOrg] = useState<Organisation | null>(null);
+  const [editingOrgStaff, setEditingOrgStaff] = useState<DbStaff | null>(null);
+  const [deletingOrgStaff, setDeletingOrgStaff] = useState<DbStaff | null>(null);
   const [extendTrialOrg, setExtendTrialOrg] = useState<Organisation | null>(null);
   const [sendLinkOrg, setSendLinkOrg] = useState<Organisation | null>(null);
   const [sendLinkIsResend, setSendLinkIsResend] = useState(false);
@@ -1046,6 +1428,33 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
           onSave={(updated) => setLocalHomes(prev => prev.map(h => h.id === updated.id ? updated : h))}
         />
       )}
+      {addingStaffForOrg && (
+        <AddStaffModal
+          onClose={() => setAddingStaffForOrg(null)}
+          onAdd={(s) => setLocalStaff(prev => [...prev, s])}
+          dbHomes={localHomes.filter(h => h.organisation_id === addingStaffForOrg.id)}
+          dbOrgs={dbOrgs}
+        />
+      )}
+      {editingOrgStaff && (
+        <EditStaffPanel
+          member={editingOrgStaff}
+          onClose={() => setEditingOrgStaff(null)}
+          onSave={(updated) => setLocalStaff(prev => prev.map(s => s.id === updated.id ? updated : s))}
+          dbHomes={localHomes}
+          dbOrgs={dbOrgs}
+        />
+      )}
+      {deletingOrgStaff && (
+        <DeleteConfirmDialog
+          member={deletingOrgStaff}
+          onCancel={() => setDeletingOrgStaff(null)}
+          onConfirm={() => {
+            setLocalStaff(prev => prev.filter(s => s.id !== deletingOrgStaff.id));
+            setDeletingOrgStaff(null);
+          }}
+        />
+      )}
       {editingOrg && (
         <EditPanel
           org={editingOrg}
@@ -1159,7 +1568,10 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
                 <p className="text-sm text-slate-400 px-6 py-8 text-center">No organisations match the current filters.</p>
               ) : filtered.map((org) => {
                 const orgHomes = localHomes.filter(h => h.organisation_id === org.id);
-                const staffCount = dbStaff.filter(s => s.organisation_id === org.id).length;
+                const orgStaff = localStaff.filter(s =>
+                  s.staff_homes.some(sh => localHomes.find(h => h.id === sh.home_id)?.organisation_id === org.id)
+                );
+                const staffCount = orgStaff.length;
                 const isExpanded = expandedId === org.id;
                 const b = getBilling(org.id);
                 const bStatus = b.subscriptionStatus ?? "inactive";
@@ -1342,6 +1754,73 @@ export default function OrganisationsClient({ dbOrgs, dbHomes, dbStaff }: Organi
                             </div>
                           </div>
                         )}
+
+                        {/* Staff subsection */}
+                        <div className="mt-4 pt-4 border-t border-slate-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                              Staff · {orgStaff.length}
+                            </p>
+                            <button
+                              onClick={() => setAddingStaffForOrg(org)}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                            >
+                              + Add Staff
+                            </button>
+                          </div>
+                          {orgStaff.length === 0 ? (
+                            <p className="text-sm text-slate-400 py-2">No staff assigned to this organisation.</p>
+                          ) : (
+                            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                              <div className="grid grid-cols-[2fr_1.5fr_1.8fr_1fr_1.4fr] gap-3 px-4 py-2 bg-slate-50 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                <span>Name</span>
+                                <span>Home(s)</span>
+                                <span>Email</span>
+                                <span>Job Title</span>
+                                <span>Actions</span>
+                              </div>
+                              <div className="divide-y divide-slate-50">
+                                {orgStaff.map((member) => {
+                                  const memberHomeNames = member.staff_homes
+                                    .map(sh => localHomes.find(h => h.id === sh.home_id)?.name)
+                                    .filter(Boolean);
+                                  return (
+                                    <div key={member.id} className="grid grid-cols-[2fr_1.5fr_1.8fr_1fr_1.4fr] gap-3 px-4 py-3 items-center text-sm">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                                          {initials(member.full_name)}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <p className="text-sm font-medium text-slate-800 truncate">{member.full_name}</p>
+                                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${roleBadgeColors[member.role] ?? "bg-slate-100 text-slate-600"}`}>
+                                            {roleDisplayName(member.role)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {memberHomeNames.map(n => (
+                                          <span key={n} className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-xs">{n}</span>
+                                        ))}
+                                      </div>
+                                      <p className="text-xs text-slate-600 truncate">{member.email}</p>
+                                      <p className="text-xs text-slate-600">{member.job_title ?? "—"}</p>
+                                      <div className="flex items-center gap-1.5">
+                                        <button
+                                          onClick={() => setEditingOrgStaff(member)}
+                                          className="px-2 py-1 rounded text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                                        >Edit</button>
+                                        <button
+                                          onClick={() => setDeletingOrgStaff(member)}
+                                          className="px-2 py-1 rounded text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+                                        >Remove</button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
