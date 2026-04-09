@@ -320,6 +320,7 @@ function EditHomeModal({
 interface AddStaffForm {
   name: string;
   email: string;
+  phone: string;
   jobTitle: JobTitle | "";
   role: string;
   homeIds: string[];
@@ -337,7 +338,7 @@ function AddStaffModal({
   dbOrgs: DbOrganisation[];
 }) {
   const [form, setForm] = useState<AddStaffForm>({
-    name: "", email: "", jobTitle: "Support Worker", role: "home_staff", homeIds: [],
+    name: "", email: "", phone: "", jobTitle: "Support Worker", role: "home_staff", homeIds: [],
   });
   const [errors, setErrors] = useState<{ name?: string; email?: string; homeIds?: string }>({});
   const [submitError, setSubmitError] = useState("");
@@ -363,6 +364,7 @@ function AddStaffModal({
       const result = await inviteStaff({
         full_name: form.name.trim(),
         email: form.email.trim(),
+        phone: form.phone.trim() || undefined,
         role: form.role,
         job_title: form.role === "home_staff" ? (form.jobTitle as string) : undefined,
         home_ids: form.homeIds,
@@ -372,6 +374,7 @@ function AddStaffModal({
         id: result.id ?? crypto.randomUUID(),
         full_name: form.name.trim(),
         email: form.email.trim(),
+        phone: form.phone.trim() || null,
         role: form.role,
         job_title: form.role === "home_staff" ? form.jobTitle as string : null,
         organisation_id: null,
@@ -416,6 +419,14 @@ function AddStaffModal({
               className={`w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 ${errors.email ? "border-red-400" : "border-slate-200"}`}
             />
             {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Phone Number</label>
+            <input type="tel" value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="e.g. 07700 900123"
+              className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">System Role</label>
@@ -521,7 +532,7 @@ function EditStaffPanel({
     const homeIds = form.staff_homes.map(sh => sh.home_id);
     await updateStaff(
       form.id,
-      { full_name: form.full_name, email: form.email, role: form.role, job_title: form.job_title ?? undefined },
+      { full_name: form.full_name, email: form.email, phone: form.phone ?? undefined, role: form.role, job_title: form.job_title ?? undefined },
       homeIds
     );
     onSave(form);
@@ -553,6 +564,14 @@ function EditStaffPanel({
             <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Email Address</label>
             <input type="email" value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wider">Phone Number</label>
+            <input type="tel" value={form.phone ?? ""}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="e.g. 07700 900123"
               className="w-full px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
             />
           </div>
