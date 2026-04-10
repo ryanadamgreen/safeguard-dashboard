@@ -182,17 +182,15 @@ function GenerateForm({ homes, defaultHomeId, allChildren, onCreated }: {
       home_id:           homeId,
       children_included: childMode === "all" ? null : selected,
     });
-    setLoading(false);
 
-    if (result.error) { setError(result.error); return; }
+    if (result.error) { setError(result.error); setLoading(false); return; }
 
-    // Build a local report object to append to the table immediately
+    // Build the local report object
     const home = homes.find((h) => h.id === homeId);
     const start = new Date(startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
     const end   = new Date(endDate).toLocaleDateString("en-GB",   { day: "numeric", month: "short", year: "numeric" });
     const title = `${typeLabel(type)} — ${start} to ${end}`;
-
-    onCreated({
+    const reportObject: DbReport = {
       id:                result.id!,
       title,
       type,
@@ -207,8 +205,24 @@ function GenerateForm({ homes, defaultHomeId, allChildren, onCreated }: {
       created_at:        new Date().toISOString(),
       homes:             home ? { name: home.name } : null,
       staff:             null,
-    });
+    };
 
+    // Call generate endpoint
+    const genRes = await fetch("/api/reports/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reportId: result.id }),
+    });
+    const genJson = await genRes.json() as { fileUrl?: string; error?: string };
+
+    setLoading(false);
+
+    if (!genJson.fileUrl) {
+      setError(genJson.error ?? "Report created but file generation failed.");
+      return;
+    }
+
+    onCreated({ ...reportObject, status: "complete", file_url: genJson.fileUrl });
     setSuccess(true);
     setStartDate(""); setEndDate(""); setSelected([]); setChildMode("all");
     setTimeout(() => setSuccess(false), 3000);
@@ -380,16 +394,33 @@ function GeneratedTable({ reports, allChildren }: { reports: DbReport[]; allChil
                       {r.staff?.full_name ?? "—"}
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <button
-                        disabled
-                        title="Report file not yet generated"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-400 bg-slate-100 rounded-lg cursor-not-allowed"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Download
-                      </button>
+                      {r.file_url ? (
+                        <a
+                          href={r.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-400 bg-slate-100 rounded-lg">
+                          {r.status === "pending" ? (
+                            <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                          ) : (
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          )}
+                          {r.status === "pending" ? "Generating…" : "Unavailable"}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );

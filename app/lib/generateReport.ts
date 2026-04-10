@@ -191,7 +191,7 @@ function buildContent(cfg: ReportConfig): string {
   }
 }
 
-export function generateReport(config: ReportConfig): void {
+export function buildReportHtml(config: ReportConfig): string {
   const generatedAt = new Date().toLocaleString("en-GB", {
     day: "numeric", month: "long", year: "numeric",
     hour: "2-digit", minute: "2-digit",
@@ -279,16 +279,8 @@ export function generateReport(config: ReportConfig): void {
   </div>
 
 </div>
-<script>window.onload = function() { window.print(); };</script>
 </body>
 </html>`;
 
-  const win = window.open("", "_blank", "width=950,height=750");
-  if (!win) {
-    // eslint-disable-next-line no-alert
-    window.alert("Please allow pop-ups in your browser to generate the report PDF.");
-    return;
-  }
-  win.document.write(html);
-  win.document.close();
+  return html;
 }
