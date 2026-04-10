@@ -450,6 +450,7 @@ function MonitoringPanel({
     setBlockedApps(newBlocked);
     setSelectedApps([]);
     saveDeviceSettings(device.dbId, { settings_blocked_apps: newBlocked });
+    onSettingsSaved({ settings_blocked_apps: newBlocked });
   }
 
   const MODE_BUTTONS: { mode: CategoryMode; label: string; active: string; inactive: string }[] = [
@@ -557,6 +558,7 @@ function MonitoringPanel({
                             const newBlocked = blockedApps.filter((a) => a !== name);
                             setBlockedApps(newBlocked);
                             saveDeviceSettings(device.dbId, { settings_blocked_apps: newBlocked });
+                            onSettingsSaved({ settings_blocked_apps: newBlocked });
                           }}
                           className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0 ml-1"
                         >
@@ -737,9 +739,9 @@ function DeviceControlPanel({
     setScheduleSaved(true);
     setTimeout(() => setScheduleSaved(false), 2000);
     const bedtime_days = DAYS.filter((_, i) => days[i]);
-    saveDeviceSettings(device.dbId, {
-      settings_schedule: { bedtime_enabled: scheduleEnabled, bedtime_start: startTime, bedtime_end: endTime, bedtime_days },
-    });
+    const newSchedule = { bedtime_enabled: scheduleEnabled, bedtime_start: startTime, bedtime_end: endTime, bedtime_days };
+    saveDeviceSettings(device.dbId, { settings_schedule: newSchedule });
+    onSettingsSaved({ settings_schedule: newSchedule });
   }
 
   function handleRequestLocation() {
