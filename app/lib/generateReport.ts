@@ -279,6 +279,7 @@ export function buildReportHtml(config: ReportConfig): string {
   </div>
 
 </div>
+<script>window.onload = function() { window.print(); };</script>
 </body>
 </html>`;
 

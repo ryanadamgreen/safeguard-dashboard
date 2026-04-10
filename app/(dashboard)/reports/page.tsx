@@ -20,6 +20,7 @@ export default async function ReportsPage() {
   );
   const { data: { user } } = await anonClient.auth.getUser();
 
+  let currentUserName = "";
   let homeIds: string[] = [];
   let homes: { id: string; name: string }[] = [];
 
@@ -41,6 +42,14 @@ export default async function ReportsPage() {
         }
       }
     }
+
+    // Fetch current user's name for report attribution
+    const { data: staffRow } = await serviceClient
+      .from("staff")
+      .select("full_name")
+      .eq("id", user.id)
+      .single();
+    if (staffRow?.full_name) currentUserName = staffRow.full_name;
   }
 
   const [reports, schedules, children] = await Promise.all([
@@ -55,6 +64,7 @@ export default async function ReportsPage() {
       schedules={schedules}
       children={children}
       homes={homes}
+      currentUserName={currentUserName}
     />
   );
 }

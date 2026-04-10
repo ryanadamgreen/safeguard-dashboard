@@ -100,11 +100,12 @@ interface Props {
   schedules: DbReportSchedule[];
   children: DbChild[];
   homes: { id: string; name: string }[];
+  currentUserName: string;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function ReportsClient({ reports: initialReports, schedules: initialSchedules, children: allChildren, homes }: Props) {
+export default function ReportsClient({ reports: initialReports, schedules: initialSchedules, children: allChildren, homes, currentUserName }: Props) {
   const [reports, setReports]     = useState(initialReports);
   const [schedules, setSchedules] = useState(initialSchedules);
 
@@ -124,6 +125,7 @@ export default function ReportsClient({ reports: initialReports, schedules: init
           homes={homes}
           defaultHomeId={defaultHomeId}
           allChildren={allChildren}
+          currentUserName={currentUserName}
           onCreated={(report) => setReports((prev) => [report, ...prev])}
         />
 
@@ -143,10 +145,11 @@ export default function ReportsClient({ reports: initialReports, schedules: init
 
 // ─── Section 1: Generate Report ───────────────────────────────────────────────
 
-function GenerateForm({ homes, defaultHomeId, allChildren, onCreated }: {
+function GenerateForm({ homes, defaultHomeId, allChildren, currentUserName, onCreated }: {
   homes: { id: string; name: string }[];
   defaultHomeId: string;
   allChildren: DbChild[];
+  currentUserName: string;
   onCreated: (report: DbReport) => void;
 }) {
   const [homeId,    setHomeId]    = useState(defaultHomeId);
@@ -222,7 +225,7 @@ function GenerateForm({ homes, defaultHomeId, allChildren, onCreated }: {
       return;
     }
 
-    onCreated({ ...reportObject, status: "complete", file_url: genJson.fileUrl });
+    onCreated({ ...reportObject, status: "complete", file_url: genJson.fileUrl, staff: currentUserName ? { full_name: currentUserName } : null });
     setSuccess(true);
     setStartDate(""); setEndDate(""); setSelected([]); setChildMode("all");
     setTimeout(() => setSuccess(false), 3000);
@@ -354,46 +357,48 @@ function GeneratedTable({ reports, allChildren }: { reports: DbReport[]; allChil
       {reports.length === 0 ? (
         <p className="text-sm text-slate-400 py-4 text-center">No reports yet. Generate your first report above.</p>
       ) : (
-        <div className="overflow-x-auto -mx-6">
-          <table className="w-full text-sm">
+        <div className="rounded-lg border border-slate-200 overflow-hidden">
+          <table className="w-full text-sm" style={{tableLayout: "fixed"}}>
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
-                {["Title", "Type", "Date Range", "Children", "Generated", "By", ""].map((h) => (
-                  <th key={h} className="text-left px-5 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[28%]">Title</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[16%]">Type</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[18%]">Date Range</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[10%]">Children</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[12%]">Generated</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[10%]">By</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[6%]"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {reports.map((r) => {
                 const totalForHome = (childrenByHomeId[r.home_id] ?? []).length;
                 return (
-                  <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-3 font-medium text-slate-800 max-w-[200px]">
-                      <p className="truncate">{r.title}</p>
-                      {r.homes?.name && (
-                        <p className="text-xs text-slate-400 mt-0.5 truncate">{r.homes.name}</p>
-                      )}
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${typeColour(r.type)}`}>
-                        {typeLabel(r.type)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-slate-500 whitespace-nowrap">
-                      {fmtRange(r.date_range_start, r.date_range_end)}
-                    </td>
-                    <td className="px-5 py-3 text-slate-500 whitespace-nowrap">
-                      {childrenLabel(r.children_included, totalForHome)}
-                    </td>
-                    <td className="px-5 py-3 text-slate-500 whitespace-nowrap">
-                      {fmt(r.generated_at)}
-                    </td>
-                    <td className="px-5 py-3 text-slate-500 whitespace-nowrap">
-                      {r.staff?.full_name ?? "—"}
-                    </td>
-                    <td className="px-5 py-3 text-right">
+                <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-4 py-3 font-medium text-slate-800">
+                <p className="truncate text-sm">{r.title}</p>
+                {r.homes?.name && (
+                <p className="text-xs text-slate-400 mt-0.5 truncate">{r.homes.name}</p>
+                )}
+                </td>
+                <td className="px-4 py-3">
+                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${typeColour(r.type)}`}>
+                {typeLabel(r.type)}
+                </span>
+                </td>
+                <td className="px-4 py-3 text-xs text-slate-500">
+                {fmtRange(r.date_range_start, r.date_range_end)}
+                </td>
+                <td className="px-4 py-3 text-xs text-slate-500">
+                {childrenLabel(r.children_included, totalForHome)}
+                </td>
+                <td className="px-4 py-3 text-xs text-slate-500">
+                {fmt(r.generated_at)}
+                </td>
+                <td className="px-4 py-3 text-xs text-slate-500 truncate">
+                {r.staff?.full_name ?? "—"}
+                </td>
+                <td className="px-4 py-3 text-right">
                       {r.file_url ? (
                         <a
                           href={r.file_url}
