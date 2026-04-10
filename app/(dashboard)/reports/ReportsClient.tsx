@@ -514,42 +514,60 @@ function SchedulesSection({ schedules, homes, defaultHomeId, onCreated, onDelete
       title="Scheduled Reports"
       subtitle="Automatically generate and email reports on a recurring schedule"
     >
-      {/* Existing schedules */}
+      {/* Existing schedules table */}
       {schedules.length > 0 && (
-        <div className="mb-6 space-y-2">
-          {schedules.map((s) => (
-            <div key={s.id} className="flex items-start justify-between gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${typeColour(s.type)}`}>
-                    {typeLabel(s.type)}
-                  </span>
-                  <span className="text-xs font-medium text-slate-600 capitalize bg-slate-200 px-2 py-0.5 rounded-full">
-                    {s.frequency}
-                  </span>
-                  {s.homes?.name && (
-                    <span className="text-xs text-slate-500">{s.homes.name}</span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 mt-1.5">
-                  <span className="font-medium text-slate-600">Next run:</span> {fmtNextRun(s.next_run_at)}
-                </p>
-                {s.recipients.length > 0 && (
-                  <p className="text-xs text-slate-400 mt-0.5 truncate">
-                    Recipients: {s.recipients.join(", ")}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={() => handleDelete(s.id)}
-                disabled={deletingId === s.id}
-                className="flex-shrink-0 text-xs font-medium text-red-500 hover:text-red-700 disabled:opacity-40 transition-colors"
-              >
-                {deletingId === s.id ? "Removing…" : "Remove"}
-              </button>
-            </div>
-          ))}
+        <div className="mb-6 rounded-lg border border-slate-200 overflow-hidden">
+          <table className="w-full text-sm" style={{tableLayout: "fixed"}}>
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50">
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[20%]">Type</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[12%]">Frequency</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[15%]">Home</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[15%]">Next Run</th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[30%]">Recipients</th>
+                <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider w-[8%]"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {schedules.map((s) => (
+                <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${typeColour(s.type)}`}>
+                      {typeLabel(s.type)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-xs font-medium text-slate-600 capitalize bg-slate-100 px-2 py-0.5 rounded-full">
+                      {s.frequency}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-600 truncate">
+                    {s.homes?.name ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-600">
+                    {fmtNextRun(s.next_run_at)}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-500 truncate">
+                    {s.recipients.join(", ") || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => handleDelete(s.id)}
+                      disabled={deletingId === s.id}
+                      className="px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors disabled:opacity-40"
+                    >
+                      {deletingId === s.id ? "Removing…" : "Remove"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+      )}
+
+      {schedules.length === 0 && (
+        <p className="text-sm text-slate-400 mb-6 py-4 text-center border border-slate-200 rounded-lg">No schedules set up yet.</p>
       )}
 
       {/* Add schedule form */}
