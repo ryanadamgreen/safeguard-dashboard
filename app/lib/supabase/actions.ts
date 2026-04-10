@@ -571,6 +571,22 @@ export async function deleteReportSchedule(id: string): Promise<{ error: string 
   return { error: null };
 }
 
+export async function updateReportScheduleRecipients(
+  id: string,
+  recipients: string[]
+): Promise<{ error: string | null }> {
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase
+    .from("report_schedules")
+    .update({ recipients })
+    .eq("id", id);
+  if (error) {
+    console.error("[updateReportScheduleRecipients]", error.message);
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
 /**
  * Re-fetch all children (with their devices) for a given home.
  * Called client-side after a device is paired so the UI updates

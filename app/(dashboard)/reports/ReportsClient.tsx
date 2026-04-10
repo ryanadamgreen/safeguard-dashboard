@@ -6,6 +6,7 @@ import {
   createReport,
   createReportSchedule,
   deleteReportSchedule,
+  updateReportScheduleRecipients,
 } from "../../lib/supabase/actions";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -137,6 +138,7 @@ export default function ReportsClient({ reports: initialReports, schedules: init
           defaultHomeId={defaultHomeId}
           onCreated={(s) => setSchedules((prev) => [s, ...prev])}
           onDeleted={(id) => setSchedules((prev) => prev.filter((s) => s.id !== id))}
+          onUpdatedRecipients={(id, recipients) => setSchedules((prev) => prev.map((s) => s.id === id ? { ...s, recipients } : s))}
         />
       </main>
     </div>
@@ -451,12 +453,13 @@ function GeneratedTable({ reports, allChildren }: { reports: DbReport[]; allChil
 
 // ─── Section 3: Scheduled Reports ─────────────────────────────────────────────
 
-function SchedulesSection({ schedules, homes, defaultHomeId, onCreated, onDeleted }: {
+function SchedulesSection({ schedules, homes, defaultHomeId, onCreated, onDeleted, onUpdatedRecipients }: {
   schedules: DbReportSchedule[];
   homes: { id: string; name: string }[];
   defaultHomeId: string;
   onCreated: (s: DbReportSchedule) => void;
   onDeleted: (id: string) => void;
+  onUpdatedRecipients: (id: string, recipients: string[]) => void;
 }) {
   const [homeId,     setHomeId]     = useState(defaultHomeId);
   const [type,       setType]       = useState("safeguarding_summary");
@@ -465,6 +468,8 @@ function SchedulesSection({ schedules, homes, defaultHomeId, onCreated, onDelete
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingRecipientsId, setEditingRecipientsId] = useState<string | null>(null);
+  const [editingRecipientsValue, setEditingRecipientsValue] = useState("");
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -509,6 +514,15 @@ function SchedulesSection({ schedules, homes, defaultHomeId, onCreated, onDelete
     if (!error) onDeleted(id);
   }
 
+  async function handleSaveRecipients(id: string) {
+    const emails = editingRecipientsValue.split(",").map(e => e.trim()).filter(Boolean);
+    const { error } = await updateReportScheduleRecipients(id, emails);
+    if (!error) {
+      onUpdatedRecipients(id, emails);
+      setEditingRecipientsId(null);
+    }
+  }
+
   return (
     <SectionCard
       title="Scheduled Reports"
@@ -547,8 +561,35 @@ function SchedulesSection({ schedules, homes, defaultHomeId, onCreated, onDelete
                   <td className="px-4 py-3 text-xs text-slate-600">
                     {fmtNextRun(s.next_run_at)}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500 truncate">
-                    {s.recipients.join(", ") || "—"}
+                  <td className="px-4 py-3 text-xs text-slate-500">
+                    {editingRecipientsId === s.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingRecipientsValue}
+                          onChange={(e) => setEditingRecipientsValue(e.target.value)}
+                          className="flex-1 px-2 py-1 text-xs border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                          placeholder="email1@home.org, email2@home.org"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleSaveRecipients(s.id)}
+                          className="px-2 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                        >Save</button>
+                        <button
+                          onClick={() => setEditingRecipientsId(null)}
+                          className="px-2 py-1 text-xs font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+                        >Cancel</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 group">
+                        <span className="truncate">{s.recipients.join(", ") || "—"}</span>
+                        <button
+                          onClick={() => { setEditingRecipientsId(s.id); setEditingRecipientsValue(s.recipients.join(", ")); }}
+                          className="opacity-0 group-hover:opacity-100 flex-shrink-0 px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                        >Edit</button>
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button
