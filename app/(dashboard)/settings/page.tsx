@@ -301,7 +301,7 @@ export default function SettingsPage() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-8">
-          <div className="max-w-4xl space-y-12">
+          <div className="space-y-12">
 
             {/* ─────────────────────────────────────────────────────────────
                 Section 1 — Personal Details
