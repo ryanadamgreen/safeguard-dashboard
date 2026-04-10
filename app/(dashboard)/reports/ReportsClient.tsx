@@ -120,7 +120,7 @@ export default function ReportsClient({ reports: initialReports, schedules: init
         </div>
       </header>
 
-      <main className="flex-1 p-8 space-y-8 max-w-4xl">
+      <main className="flex-1 p-8 space-y-8">
         <GenerateForm
           homes={homes}
           defaultHomeId={defaultHomeId}
@@ -349,6 +349,19 @@ function GeneratedTable({ reports, allChildren }: { reports: DbReport[]; allChil
     childrenByHomeId[c.home_id].push(c);
   }
 
+  async function handleOpen(fileUrl: string) {
+    try {
+      const res = await fetch(fileUrl);
+      const html = await res.text();
+      const blob = new Blob([html], { type: "text/html" });
+      const blobUrl = URL.createObjectURL(blob);
+      const win = window.open(blobUrl, "_blank");
+      if (!win) alert("Please allow pop-ups to open reports.");
+    } catch {
+      alert("Failed to open report. Please try again.");
+    }
+  }
+
   return (
     <SectionCard
       title="Generated Reports"
@@ -400,17 +413,15 @@ function GeneratedTable({ reports, allChildren }: { reports: DbReport[]; allChil
                 </td>
                 <td className="px-4 py-3 text-right">
                       {r.file_url ? (
-                        <a
-                          href={r.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={() => handleOpen(r.file_url!)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                           </svg>
-                          Download
-                        </a>
+                          Open
+                        </button>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-400 bg-slate-100 rounded-lg">
                           {r.status === "pending" ? (
