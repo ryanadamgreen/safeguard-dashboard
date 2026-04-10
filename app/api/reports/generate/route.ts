@@ -60,34 +60,42 @@ export async function POST(req: NextRequest) {
     includeTamper:  true,
     notes:          "",
     alerts: (alerts ?? []).map((a) => ({
-      id:            a.id,
+      id:            0, // Alert.id is number in UI type
+      homeId:        0,
       timestamp:     a.created_at,
       childInitials: a.children?.initials ?? "—",
       childName:     a.children?.initials ?? "—",
+      childAge:      a.children?.age ?? 0,
+      device:        "Device",
       alertType:     friendlyType(a.alert_type ?? ""),
-      severity:      a.severity ?? "low",
+      severity:      (a.severity ?? "low") as "critical" | "high" | "medium" | "low",
       description:   a.description ?? "",
-      homeId:        a.home_id,
+      status:        "reviewed" as const,
+      triggerContent: a.description ?? "",
+      location:      formatLocation(a.last_location),
     })),
     tamperEvents: (alerts ?? [])
       .filter((a) => a.alert_type === "tamper")
       .map((a) => ({
-        id:            a.id,
+        id:            0,
+        homeId:        0,
         timestamp:     a.created_at,
         childInitials: a.children?.initials ?? "—",
         childName:     a.children?.initials ?? "—",
-        device:        a.devices?.device_name ?? "Unknown Device",
-        eventType:     a.description ?? "Tamper detected",
-        location:      { area: formatLocation(a.last_location) },
+        device:        "Device",
+        eventType:     "Device Tamper" as const,
+        severity:      "critical" as const,
+        location:      { lat: 0, lng: 0, area: formatLocation(a.last_location) },
       })),
-    children: (children ?? []).map((c) => ({
-      id:        c.id,
+    children: (children ?? []).map((c, i) => ({
+      id:        i,
+      homeId:    0,
       name:      c.initials,
       initials:  c.initials,
       age:       c.age ?? 0,
       room:      "—",
       keyWorker: c.key_worker ?? "—",
-      deviceId:  c.devices?.[0]?.device_name ?? null,
+      deviceId:  c.devices?.[0]?.device_name ?? undefined,
     })),
   };
 
