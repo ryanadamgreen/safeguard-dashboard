@@ -688,7 +688,25 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
 
                     <div>
                       <p className="text-sm font-medium text-slate-700">{t.eventType}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Last known location: {t.location.area}</p>
+                      {t.location.lat !== 0 || t.location.lng !== 0 ? (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <svg className="w-3 h-3 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <a
+                            href={`https://www.google.com/maps?q=${t.location.lat},${t.location.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors"
+                          >
+                            {t.location.lat.toFixed(4)}, {t.location.lng.toFixed(4)} → View on Map
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 mt-0.5">Location unavailable</p>
+                      )}
                     </div>
 
                     <div className="min-w-0">

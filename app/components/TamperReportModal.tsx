@@ -73,7 +73,20 @@ export function TamperReportModal({ event, homeName, onClose }: Props) {
               <span className="text-slate-500">Child initials: <span className="font-semibold text-slate-700">{event.childInitials}</span></span>
               <span className="text-slate-500">Device: <span className="font-semibold text-slate-700">{event.device}</span></span>
               <span className="text-slate-500">Time: <span className="font-semibold text-slate-700">{eventTime}</span></span>
-              <span className="text-slate-500">Coordinates: <span className="font-semibold text-slate-700">{coords}</span></span>
+              <span className="text-slate-500">Coordinates: 
+                {event.location.lat !== 0 || event.location.lng !== 0 ? (
+                  <a
+                    href={`https://www.google.com/maps?q=${event.location.lat},${event.location.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-red-600 hover:text-red-700 underline"
+                  >
+                    {event.location.lat.toFixed(5)}, {event.location.lng.toFixed(5)} ↗
+                  </a>
+                ) : (
+                  <span className="font-semibold text-slate-700">Not available</span>
+                )}
+              </span>
               <span className="col-span-2 text-slate-500">Last known location: <span className="font-semibold text-slate-700">{event.location.area}</span></span>
             </div>
           </div>
