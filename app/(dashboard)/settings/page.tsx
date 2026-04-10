@@ -24,23 +24,6 @@ const readonlyClass = "w-full px-3 py-2 text-sm text-slate-600 bg-slate-50 borde
 
 // ── Static data ────────────────────────────────────────────────────────────
 
-const ACTIVE_SESSIONS = [
-  {
-    id: "current",
-    device: "Windows 11 — Chrome 123",
-    location: "Birmingham, United Kingdom",
-    lastActive: "Active now",
-    isCurrent: true,
-  },
-  {
-    id: "mobile",
-    device: "iPhone 15 — Safari 17",
-    location: "Birmingham, United Kingdom",
-    lastActive: "2 hours ago",
-    isCurrent: false,
-  },
-];
-
 type Channel = "email" | "inApp" | "both" | "none";
 
 const CHANNEL_LABELS: Record<Channel, string> = {
@@ -142,13 +125,6 @@ export default function SettingsPage() {
   const [pwError, setPwError]   = useState("");
   const [pwSuccess, setPwSuccess] = useState(false);
 
-  // Section 2: 2FA test code
-  const [testCodeSent, setTestCodeSent]         = useState(false);
-  const [testCodeCooldown, setTestCodeCooldown] = useState(0);
-
-  // Section 2: Active sessions
-  const [sessionsSignedOut, setSessionsSignedOut] = useState(false);
-
   // Section 3: Notification prefs
   const [prefs, setPrefs]       = useState(INITIAL_PREFS);
   const [prefsSaved, setPrefsSaved] = useState(false);
@@ -163,13 +139,6 @@ export default function SettingsPage() {
   const [warningMinsLeft, setWarningMinsLeft] = useState(30);
   const lastActivityRef   = useRef(Date.now());
   const warningActiveRef  = useRef(false);
-
-  // ── 2FA cooldown countdown ───────────────────────────────────────────────
-  useEffect(() => {
-    if (testCodeCooldown <= 0) return;
-    const id = setInterval(() => setTestCodeCooldown((s) => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(id);
-  }, [testCodeCooldown]);
 
   // ── Inactivity / session timeout ─────────────────────────────────────────
   useEffect(() => {
@@ -222,12 +191,6 @@ export default function SettingsPage() {
     setPwSuccess(true);
     setCurrent(""); setNext(""); setConfirm("");
     setTimeout(() => setPwSuccess(false), 3000);
-  }
-
-  function handleSendTestCode() {
-    if (testCodeCooldown > 0) return;
-    setTestCodeSent(true);
-    setTestCodeCooldown(60);
   }
 
   function handleSavePrefs() {
@@ -387,56 +350,6 @@ export default function SettingsPage() {
                   </div>
                 </Card>
 
-                {/* Active Sessions */}
-                <Card>
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-700">Active Sessions</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Devices currently signed in to your account</p>
-                    </div>
-                    <button
-                      onClick={() => setSessionsSignedOut(true)}
-                      disabled={sessionsSignedOut}
-                      className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-100 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {sessionsSignedOut ? "All other sessions signed out" : "Sign out all other sessions"}
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {ACTIVE_SESSIONS
-                      .filter((s) => !sessionsSignedOut || s.isCurrent)
-                      .map((session) => (
-                        <div
-                          key={session.id}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
-                            session.isCurrent
-                              ? "border-blue-200 bg-blue-50"
-                              : "border-slate-200 bg-slate-50"
-                          }`}
-                        >
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${
-                            session.isCurrent ? "bg-blue-100" : "bg-slate-200"
-                          }`}>
-                            <svg className={`w-4 h-4 ${session.isCurrent ? "text-blue-600" : "text-slate-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-slate-700 truncate">{session.device}</p>
-                            <p className="text-xs text-slate-400 truncate">{session.location}</p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className={`text-xs font-medium ${session.isCurrent ? "text-blue-600" : "text-slate-500"}`}>
-                              {session.lastActive}
-                            </p>
-                            {session.isCurrent && (
-                              <span className="text-[10px] text-blue-400">This device</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </Card>
               </div>
             </section>
 
