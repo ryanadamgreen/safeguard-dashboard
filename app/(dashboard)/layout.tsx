@@ -7,15 +7,16 @@ import { SubscriptionWrapper } from "../components/SubscriptionWrapper";
 import { getUnresolvedAlertCount } from "../lib/supabase/queries";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [initialAlertCount, subscriptionStatus] = await Promise.all([
+  const [initialAlertCount, alertTimestamps, subscriptionStatus] = await Promise.all([
     getUnresolvedAlertCount(),
+    getRecentAlertTimestamps(),
     getSubscriptionStatus(),
   ]);
 
   return (
     <RouteGuard allow={["HOME_STAFF", "READONLY_STAFF"]} redirectTo="/login">
       <div className="flex min-h-screen bg-slate-50">
-        <Sidebar initialAlertCount={initialAlertCount} />
+        <Sidebar initialAlertCount={initialAlertCount} alertTimestamps={alertTimestamps} />
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto h-screen">
           <SubscriptionWrapper subscriptionStatus={subscriptionStatus}>
             {children}
@@ -24,6 +25,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </div>
     </RouteGuard>
   );
+}
+
+async function getRecentAlertTimestamps(): Promise<string[]> {
+  try {
+    const supabase = createSupabaseServerClient();
+    const { data } = await supabase
+      .from("alerts")
+      .select("created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    return (data ?? []).map((r) => r.created_at as string);
+  } catch {
+    return [];
+  }
 }
 
 async function getSubscriptionStatus(): Promise<string | null> {

@@ -171,6 +171,9 @@ function isWithinRange(iso: string, range: DateRange): boolean {
   return now.getTime() - date.getTime() <= days * msPerDay;
 }
 
+const PAGE_SIZE = 30;
+const LAST_VISIT_KEY = "safeguard_alerts_last_visit";
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function FilterSelect({
@@ -426,6 +429,12 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
   const [alertType, setAlertType] = useState("");
   const [child,     setChild]     = useState("");
   const [dateRange, setDateRange] = useState<DateRange>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Record last visit time for badge count, then reset badge
+  useEffect(() => {
+    localStorage.setItem(LAST_VISIT_KEY, new Date().toISOString());
+  }, []);
 
   // Live alerts list — seeded from server, updated via Realtime
   const [dbAlerts, setDbAlerts] = useState<DbAlert[]>(initialDbAlerts);
@@ -507,6 +516,7 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
     setAlertType("");
     setChild("");
     setDateRange("all");
+    setCurrentPage(1);
   }
 
   const filtered = allRows.filter((row) => {
@@ -526,6 +536,10 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
     }
     return true;
   });
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Child filter options built from real DB children
   const childOptions = homeDbChildren.map((c) => ({
@@ -652,7 +666,7 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
             {filtered.length === 0 && (
               <p className="text-sm text-slate-400 text-center py-12">No alerts match your filters.</p>
             )}
-            {filtered.map((row) => {
+            {pagedRows.map((row) => {
               if (row.kind === "tamper") {
                 const t = row.data;
                 return (
@@ -797,23 +811,45 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
         <div className="flex items-center justify-between mt-5">
           <p className="text-sm text-slate-500">
             Showing{" "}
-            <span className="font-medium text-slate-700">{filtered.length}</span>
+            <span className="font-medium text-slate-700">{(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)}</span>
             {" "}of{" "}
-            <span className="font-medium text-slate-700">{totalCount}</span>
+            <span className="font-medium text-slate-700">{filtered.length}</span>
             {" "}alerts
           </p>
-          <div className="flex items-center gap-1">
-            {["←", "1", "2", "3", "→"].map((p) => (
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
               <button
-                key={p}
-                className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors ${
-                  p === "1" ? "bg-blue-600 text-white font-medium" : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >←</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                .reduce<(number | "...")[]>((acc, p, i, arr) => {
+                  if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push("...");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === "..." ? (
+                    <span key={`ellipsis-${i}`} className="w-8 h-8 flex items-center justify-center text-slate-400 text-sm">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p as number)}
+                      className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors ${
+                        p === currentPage ? "bg-blue-600 text-white font-medium" : "text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >{p}</button>
+                  )
+                )}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >→</button>
+            </div>
+          )}
         </div>
       </main>
 

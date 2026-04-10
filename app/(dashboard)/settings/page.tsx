@@ -387,45 +387,6 @@ export default function SettingsPage() {
                   </div>
                 </Card>
 
-                {/* Two-Factor Authentication */}
-                <Card>
-                  <div className="flex items-start justify-between gap-6">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-semibold text-slate-700">Two-Factor Authentication</p>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Active
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 leading-relaxed max-w-md">
-                        Two-factor authentication is mandatory on your account. A verification code is sent
-                        to your registered email each time you sign in.
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-2">
-                        <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <span className="text-xs text-slate-500 font-mono">{maskedEmail}</span>
-                      </div>
-                      {testCodeSent && (
-                        <p className="text-xs text-emerald-600 mt-2">
-                          Test code sent to {maskedEmail}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex-shrink-0">
-                      <button
-                        onClick={handleSendTestCode}
-                        disabled={testCodeCooldown > 0}
-                        className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {testCodeCooldown > 0 ? `Resend in ${testCodeCooldown}s` : "Send test code"}
-                      </button>
-                    </div>
-                  </div>
-                </Card>
-
                 {/* Active Sessions */}
                 <Card>
                   <div className="flex items-center justify-between mb-4">

@@ -55,18 +55,33 @@ const HOME_NAV = [
   },
 ];
 
-export default function Sidebar({ initialAlertCount }: { initialAlertCount: number }) {
+export default function Sidebar({ initialAlertCount, alertTimestamps }: { initialAlertCount: number; alertTimestamps: string[] }) {
   const pathname = usePathname();
   const { user, setUser, selectedHomeId, setSelectedHomeId } = useAuth();
   const router = useRouter();
   const [homeDropdownOpen, setHomeDropdownOpen] = useState(false);
 
-  // ── Alerts badge: live count from Supabase, updated via Realtime ──
-  const [alertBadgeCount, setAlertBadgeCount] = useState(initialAlertCount);
+  // ── Alerts badge: count alerts newer than last visit ──
+  const [alertBadgeCount, setAlertBadgeCount] = useState(0);
+
+  useEffect(() => {
+    const lastVisit = localStorage.getItem("safeguard_alerts_last_visit");
+    if (!lastVisit) {
+      setAlertBadgeCount(initialAlertCount);
+    } else {
+      const since = new Date(lastVisit).getTime();
+      const newCount = alertTimestamps.filter(
+        (ts) => new Date(ts).getTime() > since
+      ).length;
+      setAlertBadgeCount(newCount);
+    }
+  }, [initialAlertCount, alertTimestamps]);
 
   // Clear badge when user visits the Alerts page
   useEffect(() => {
-    if (pathname === "/alerts") setAlertBadgeCount(0);
+    if (pathname === "/alerts") {
+      setAlertBadgeCount(0);
+    }
   }, [pathname]);
 
   useEffect(() => {
