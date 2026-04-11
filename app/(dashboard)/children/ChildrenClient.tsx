@@ -703,6 +703,7 @@ function DeviceControlPanel({
   onSetWebRestrictions,
   onRemoved,
   onSettingsSaved,
+  onDismissTamper,
 }: {
   device: UiDevice;
   homeId: string;
@@ -713,6 +714,7 @@ function DeviceControlPanel({
   onSetWebRestrictions: (id: string, hasRestrictions: boolean) => void;
   onRemoved: (deviceDbId: string) => void;
   onSettingsSaved: (patch: Partial<Record<string, unknown>>) => void;
+  onDismissTamper: () => void;
 }) {
   const [repairOpen, setRepairOpen] = useState(false);
   const [removeConfirm, setRemoveConfirm] = useState(false);
@@ -791,11 +793,22 @@ function DeviceControlPanel({
           {/* ── TAMPER WARNING BANNER ── */}
           {tamperEvent && (
             <div className="mb-5 rounded-xl border border-red-200 bg-red-50 overflow-hidden">
-              <div className="flex items-center gap-2 px-4 py-2 bg-red-600">
-                <svg className="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                </svg>
-                <p className="text-xs font-bold text-white uppercase tracking-wide">Security Alert</p>
+              <div className="flex items-center justify-between px-4 py-2 bg-red-600">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                  <p className="text-xs font-bold text-white uppercase tracking-wide">Security Alert</p>
+                </div>
+                <button
+                  onClick={onDismissTamper}
+                  className="text-red-200 hover:text-white transition-colors"
+                  title="Dismiss alert"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
               <div className="px-4 py-3 space-y-1">
                 <p className="text-sm font-semibold text-red-800">
@@ -807,7 +820,7 @@ function DeviceControlPanel({
               </div>
               <div className="px-4 pb-4">
                 <button
-                  onClick={() => setRepairOpen(true)}
+                  onClick={() => { setRepairOpen(true); }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1104,8 +1117,16 @@ function DeviceControlPanel({
 
       {/* Re-pair modal — z-60 to sit above this panel */}
       {repairOpen && (
-        <RePairModal deviceDbId={device.dbId} deviceName={device.id} homeId={homeId} onClose={() => setRepairOpen(false)} />
-      )}
+            <RePairModal
+              deviceDbId={device.dbId}
+              deviceName={device.id}
+              homeId={homeId}
+              onClose={() => {
+                setRepairOpen(false);
+                onDismissTamper();
+              }}
+            />
+          )}
     </div>
   );
 }
@@ -1758,6 +1779,11 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
 
   // Local status overrides — updated by Pause/Resume in DeviceControlPanel
   const [deviceStatuses, setDeviceStatuses] = useState<Record<string, DeviceStatus>>({});
+  const [dismissedTampers, setDismissedTampers] = useState<Set<string>>(new Set());
+
+  function dismissTamper(deviceDbId: string) {
+    setDismissedTampers((prev) => new Set([...prev, deviceDbId]));
+  }
 
   function handleSetStatus(id: string, status: DeviceStatus) {
     console.log("[handleSetStatus] id:", id, "status:", status);
@@ -1796,8 +1822,9 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
     : null;
 
   // Derive tamper events from alerts with category = 'tamper', keyed by device UUID
+  // Exclude any devices where the tamper has been dismissed by staff
   const tamperByDevice = dbAlerts
-    .filter((a) => a.category === "tamper" && a.home_id === homeId && a.device_id)
+    .filter((a) => a.category === "tamper" && a.home_id === homeId && a.device_id && !dismissedTampers.has(a.device_id))
     .reduce<Record<string, UiTamperEvent>>((acc, a) => {
       const key = a.device_id!;
       if (!acc[key] || a.created_at > acc[key].timestamp) {
@@ -2033,6 +2060,7 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
           onClose={() => setControlDeviceId(null)}
           onSetStatus={handleSetStatus}
           onSetWebRestrictions={handleSetWebRestrictions}
+          onDismissTamper={() => dismissTamper(controlDevice.dbId)}
           onRemoved={(deviceDbId) => {
             setLocalChildren((prev) =>
               prev.map((c) => ({ ...c, devices: c.devices.filter((d) => d.id !== deviceDbId) }))
