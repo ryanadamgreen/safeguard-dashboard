@@ -1779,10 +1779,19 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
 
   // Local status overrides — updated by Pause/Resume in DeviceControlPanel
   const [deviceStatuses, setDeviceStatuses] = useState<Record<string, DeviceStatus>>({});
-  const [dismissedTampers, setDismissedTampers] = useState<Set<string>>(new Set());
+  const [dismissedTampers, setDismissedTampers] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem("safeguard_dismissed_tampers");
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
+    } catch { return new Set(); }
+  });
 
   function dismissTamper(deviceDbId: string) {
-    setDismissedTampers((prev) => new Set([...prev, deviceDbId]));
+    setDismissedTampers((prev) => {
+      const next = new Set([...prev, deviceDbId]);
+      try { localStorage.setItem("safeguard_dismissed_tampers", JSON.stringify([...next])); } catch {}
+      return next;
+    });
   }
 
   function handleSetStatus(id: string, status: DeviceStatus) {
@@ -1822,9 +1831,20 @@ export default function ChildrenClient({ dbChildren, dbAlerts, dbStaff }: Props)
     : null;
 
   // Derive tamper events from alerts with category = 'tamper', keyed by device UUID
-  // Exclude any devices where the tamper has been dismissed by staff
+  // Auto-clear if: dismissed by staff OR device has been seen after the tamper (reconnected)
+  const deviceLastSeenByDbId = homeChildren
+    .flatMap((c) => c.devices)
+    .reduce<Record<string, string>>((acc, d) => ({ ...acc, [d.dbId]: d.location.updatedAt }), {});
+
   const tamperByDevice = dbAlerts
-    .filter((a) => a.category === "tamper" && a.home_id === homeId && a.device_id && !dismissedTampers.has(a.device_id))
+    .filter((a) => {
+      if (a.category !== "tamper" || a.home_id !== homeId || !a.device_id) return false;
+      if (dismissedTampers.has(a.device_id)) return false;
+      // Auto-clear if device has reported a heartbeat since the tamper
+      const lastSeen = deviceLastSeenByDbId[a.device_id];
+      if (lastSeen && new Date(lastSeen) > new Date(a.created_at)) return false;
+      return true;
+    })
     .reduce<Record<string, UiTamperEvent>>((acc, a) => {
       const key = a.device_id!;
       if (!acc[key] || a.created_at > acc[key].timestamp) {
