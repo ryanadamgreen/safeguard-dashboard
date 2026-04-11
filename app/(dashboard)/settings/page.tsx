@@ -65,7 +65,6 @@ const SEVERITY_KEY = [
     color: "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-600/20",
     items: [
       "Late night usage",
-      "App installed",
       "Social media flagged",
       "Blocked website attempt",
     ],
