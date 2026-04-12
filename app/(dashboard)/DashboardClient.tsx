@@ -356,12 +356,13 @@ export default function DashboardClient({
     .map((a) => {
       const loc = a.last_location as { lat?: number; lng?: number; area?: string } | null;
       return {
-        id: 0, // unused — filtering uses string id above
+        id: 0,
         homeId: 0,
         childInitials: a.children?.initials ?? "",
         childName: a.children?.initials ?? "",
         device: a.devices?.device_name ?? "",
         eventType: (a.alert_type ?? "Device Tamper") as TamperEvent["eventType"],
+        description: a.description ?? "Device tamper detected",
         timestamp: a.created_at,
         location: { lat: loc?.lat ?? 0, lng: loc?.lng ?? 0, area: loc?.area ?? "Unknown" },
         severity: "critical" as const,
@@ -537,7 +538,7 @@ export default function DashboardClient({
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-red-800">{evt.eventType}</span>
+                      <span className="text-sm font-semibold text-red-800">{evt.description}</span>
                       <span className="text-xs font-medium text-red-500 bg-red-100 px-2 py-0.5 rounded-full">CRITICAL</span>
                     </div>
                     <p className="text-xs text-red-600 mt-0.5">
