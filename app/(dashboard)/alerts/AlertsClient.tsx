@@ -104,10 +104,23 @@ function mapDbAlertToTamperEvent(a: DbAlert, index: number): TamperEvent {
     childName: a.children?.initials ?? "",
     device: a.devices?.device_name ?? "",
     eventType: (a.alert_type ?? "Device Tamper") as TamperEvent["eventType"],
+    description: a.description ?? "Device tamper detected",
     timestamp: a.created_at,
     location: { lat: loc?.lat ?? 0, lng: loc?.lng ?? 0, area: loc?.area ?? "Unknown" },
     severity: "critical" as const,
   };
+}
+
+/** Maps a tamper description to a short label showing what protection was lost */
+function tamperProtectionLost(description: string): { label: string; icon: string } | null {
+  const d = description.toLowerCase();
+  if (d.includes("accessibility"))  return { label: "Content monitoring stopped",  icon: "👁" };
+  if (d.includes("vpn"))            return { label: "Website blocking stopped",     icon: "🛡" };
+  if (d.includes("administrator"))  return { label: "Remote lock disabled",         icon: "🔒" };
+  if (d.includes("uninstall"))      return { label: "App removal attempted",         icon: "🗑" };
+  if (d.includes("date") || d.includes("time")) return { label: "Clock tampered — bedtime bypass", icon: "🕐" };
+  if (d.includes("safe mode"))      return { label: "All monitoring was suspended",  icon: "⚠️" };
+  return null;
 }
 
 // ─── UI config ────────────────────────────────────────────────────────────────
@@ -687,9 +700,18 @@ export default function AlertsClient({ dbAlerts: initialDbAlerts, dbChildren }: 
                     </div>
 
                     <div>
-                      <p className="text-sm font-medium text-slate-700">{t.eventType}</p>
+                      <p className="text-sm font-medium text-slate-700">{t.description}</p>
+                      {(() => {
+                        const lost = tamperProtectionLost(t.description);
+                        return lost ? (
+                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-700 border border-red-200">
+                            <span>{lost.icon}</span>
+                            {lost.label}
+                          </span>
+                        ) : null;
+                      })()}
                       {t.location.lat !== 0 || t.location.lng !== 0 ? (
-                        <div className="flex items-center gap-1.5 mt-0.5">
+                        <div className="flex items-center gap-1.5 mt-1">
                           <svg className="w-3 h-3 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />

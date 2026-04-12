@@ -59,6 +59,7 @@ export interface TamperEvent {
   childName: string;
   device: string;
   eventType: TamperEventType;
+  description: string;  // human-readable message from the device
   timestamp: string;
   location: { lat: number; lng: number; area: string };
   severity: "critical";

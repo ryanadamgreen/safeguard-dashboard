@@ -39,7 +39,7 @@ export function TamperReportModal({ event, homeName, onClose }: Props) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
           <div>
             <h2 className="text-base font-semibold text-slate-800">Download Security Report</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{event.eventType} — {event.childInitials} · {event.device}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{event.description} — {event.childInitials} · {event.device}</p>
           </div>
           <button
             onClick={onClose}
@@ -60,7 +60,7 @@ export function TamperReportModal({ event, homeName, onClose }: Props) {
                 <svg className="w-4 h-4 text-red-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                <span className="text-sm font-semibold text-red-800">{event.eventType}</span>
+                <span className="text-sm font-semibold text-red-800">{event.description}</span>
               </div>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-red-600 text-white">
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
