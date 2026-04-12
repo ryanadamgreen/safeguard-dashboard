@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
         childName:     a.children?.initials ?? "—",
         device:        "Device",
         eventType:     "Device Tamper" as const,
+        description:   a.description ?? "Device tamper detected",
         severity:      "critical" as const,
         location:      { lat: 0, lng: 0, area: formatLocation(a.last_location) },
       })),
