@@ -97,8 +97,10 @@ export function generateTamperReport(
   <div class="header">
     <div class="logo">
       <div class="logo-icon">
-        <svg fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        <svg viewBox="0 0 56 56" width="32" height="32">
+          <path d="M28,8 L46,14 L46,32 Q46,46 28,50 Q10,46 10,32 L10,14 Z" fill="white"/>
+          <circle cx="38" cy="17" r="6" fill="#1DB894"/>
+          <circle cx="38" cy="17" r="3" fill="#3D3F8A"/>
         </svg>
       </div>
       <div>

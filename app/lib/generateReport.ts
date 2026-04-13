@@ -214,12 +214,12 @@ export function buildReportHtml(config: ReportConfig): string {
   .page { max-width: 780px; margin: 0 auto; padding: 48px 48px 40px; }
   .header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 24px; border-bottom: 2px solid #e2e8f0; margin-bottom: 28px; }
   .logo { display: flex; align-items: center; gap: 14px; }
-  .logo-icon { width: 46px; height: 46px; background: #2563eb; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo-icon { width: 46px; height: 46px; background: #3D3F8A; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .logo-icon svg { width: 28px; height: 28px; }
   .logo-name { font-size: 22px; font-weight: 700; color: #1e293b; letter-spacing: -0.4px; line-height: 1; }
   .logo-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
   .header-right { text-align: right; }
-  .doc-type { font-size: 14px; font-weight: 700; color: #2563eb; }
+  .doc-type { font-size: 14px; font-weight: 700; color: #3D3F8A; }
   .doc-meta { font-size: 11px; color: #94a3b8; margin-top: 5px; line-height: 1.6; }
   .title-block { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9; }
   .report-title { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 10px; }
@@ -242,12 +242,14 @@ export function buildReportHtml(config: ReportConfig): string {
   <div class="header">
     <div class="logo">
       <div class="logo-icon">
-        <svg fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        <svg viewBox="0 0 56 56" width="32" height="32">
+          <path d="M28,8 L46,14 L46,32 Q46,46 28,50 Q10,46 10,32 L10,14 Z" fill="white"/>
+          <circle cx="38" cy="17" r="6" fill="#1DB894"/>
+          <circle cx="38" cy="17" r="3" fill="#3D3F8A"/>
         </svg>
       </div>
       <div>
-        <div class="logo-name">SafeGuard</div>
+        <div class="logo-name">ScreenAlert</div>
         <div class="logo-sub">${esc(config.homeName)}</div>
       </div>
     </div>
@@ -274,7 +276,7 @@ export function buildReportHtml(config: ReportConfig): string {
 
   <div class="footer">
     <p style="max-width:65%;">This document contains sensitive safeguarding information. Handle in accordance with your data protection policy. Not for public disclosure.</p>
-    <p>SafeGuard · ${esc(config.homeName)}<br/>${generatedAt}</p>
+    <p>ScreenAlert · ${esc(config.homeName)}<br/>${generatedAt}</p>
   </div>
 
 </div>

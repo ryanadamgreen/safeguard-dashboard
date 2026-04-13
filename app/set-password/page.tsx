@@ -151,7 +151,7 @@ export default function SetPasswordPage() {
           </div>
           <div>
             <p className="text-sm font-medium text-slate-200">&ldquo;ScreenAlert transformed how we handle digital safeguarding.&rdquo;</p>
-            <p className="text-xs text-slate-500 mt-0.5">Sarah Johnson, Registered Manager — Oakwood House</p>
+            <p className="text-xs text-slate-500 mt-0.5">Sarah Johnson, Registered Manager</p>
           </div>
         </div>
       </div>
