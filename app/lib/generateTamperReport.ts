@@ -30,7 +30,7 @@ export function generateTamperReport(
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>SafeGuard Security Alert Report — ${esc(event.eventType)}</title>
+<title>ScreenAlert Security Report — ${esc(event.eventType)}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; background: #fff; font-size: 13px; }
@@ -102,7 +102,7 @@ export function generateTamperReport(
         </svg>
       </div>
       <div>
-        <div class="logo-name">SafeGuard</div>
+        <div class="logo-name">ScreenAlert</div>
         <div class="logo-sub">${esc(homeName)}</div>
       </div>
     </div>
@@ -182,7 +182,7 @@ export function generateTamperReport(
 
   <!-- Footer -->
   <div class="footer">
-    <p>SafeGuard Residential Monitoring &nbsp;·&nbsp; Confidential safeguarding document &nbsp;·&nbsp; Not for public disclosure</p>
+    <p>ScreenAlert Residential Monitoring &nbsp;·&nbsp; Confidential safeguarding document &nbsp;·&nbsp; Not for public disclosure</p>
     <p>Security Tamper Report &nbsp;·&nbsp; ${generatedAt}</p>
   </div>
 

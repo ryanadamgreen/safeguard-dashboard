@@ -261,7 +261,7 @@ function RePairModal({ deviceId, onClose }: { deviceId: string; onClose: () => v
           {!expired && (
             <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
               <p className="text-sm text-blue-800 leading-relaxed">
-                Open the <strong>SafeGuard app</strong> on the device and enter this code to re-establish monitoring.
+                Open the <strong>ScreenAlert app</strong> on the device and enter this code to re-establish monitoring.
               </p>
             </div>
           )}
@@ -481,7 +481,7 @@ export default function DashboardClient({
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
           </svg>
           <p className="text-sm text-white font-medium">
-            Your trial has expired. Please contact your administrator to set up a subscription to continue using SafeGuard.
+            Your trial has expired. Please contact your administrator to set up a subscription to continue using ScreenAlert.
           </p>
         </div>
       )}
@@ -492,7 +492,7 @@ export default function DashboardClient({
           </svg>
           <p className="text-sm text-amber-800">
             <span className="font-semibold">You are on a free trial</span> — {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} remaining.
-            {" "}To continue using SafeGuard after your trial, contact your administrator.
+            {" "}To continue using ScreenAlert after your trial, contact your administrator.
           </p>
         </div>
       )}

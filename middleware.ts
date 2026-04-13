@@ -31,13 +31,15 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  if (
-    !user &&
-    !pathname.startsWith("/login") &&
-    !pathname.startsWith("/set-password") &&
-    !pathname.startsWith("/billing/success") &&
-    !pathname.startsWith("/api/")
-  ) {
+  // Public routes — no auth required
+  const isPublic =
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/set-password") ||
+    pathname.startsWith("/billing/success") ||
+    pathname.startsWith("/api/");
+
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

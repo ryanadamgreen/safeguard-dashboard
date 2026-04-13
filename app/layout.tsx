@@ -9,8 +9,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "SafeGuard — Residential Monitoring",
-  description: "Safeguarding dashboard for children's residential homes",
+  title: "ScreenAlert — Child Safeguarding Platform",
+  description: "Real-time safeguarding alerts and device monitoring for children's residential homes.",
 };
 
 export default function RootLayout({

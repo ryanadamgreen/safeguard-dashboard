@@ -152,22 +152,24 @@ export default function LoginPage() {
   const leftPanel = (
     <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 bg-slate-900 border-r border-slate-800">
       <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-500">
-          <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-        </div>
-        <span className="text-white font-semibold text-lg tracking-tight">SafeGuard</span>
+        <svg viewBox="0 0 56 56" width="36" height="36">
+          <path d="M28,8 L46,14 L46,32 Q46,46 28,50 Q10,46 10,32 L10,14 Z" fill="white" opacity="0.9"/>
+          <circle cx="38" cy="17" r="6" fill="#1DB894"/>
+          <circle cx="38" cy="17" r="3" fill="#0f172a"/>
+        </svg>
+        <span className="text-white font-semibold text-lg tracking-tight">
+          Screen<span style={{ color: "#1DB894", fontWeight: 700 }}>Alert</span>
+        </span>
       </div>
 
       <div>
         <div className="mb-8 flex items-center gap-3">
-          <span className="w-8 h-px bg-blue-500" />
-          <span className="text-blue-400 text-xs font-semibold uppercase tracking-widest">Residential Monitoring</span>
+          <span className="w-8 h-px" style={{ backgroundColor: "#1DB894" }} />
+          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#1DB894" }}>Child Safeguarding Platform</span>
         </div>
         <h2 className="text-4xl font-bold text-white leading-tight mb-4">
           Protecting children.<br />
-          <span className="text-blue-400">Every hour of the day.</span>
+          <span style={{ color: "#1DB894" }}>Every hour of the day.</span>
         </h2>
         <p className="text-slate-400 text-base leading-relaxed max-w-sm">
           Real-time safeguarding alerts, device monitoring, and compliance reporting for children&apos;s residential homes.
@@ -187,11 +189,11 @@ export default function LoginPage() {
       </div>
 
       <div className="flex items-center gap-3 p-4 bg-slate-800/60 rounded-xl border border-slate-700/50">
-        <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 font-semibold text-sm flex-shrink-0">
+        <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0" style={{ backgroundColor: 'rgba(61,63,138,0.3)', color: '#9A9DD4' }}>
           SJ
         </div>
         <div>
-          <p className="text-sm font-medium text-slate-200">&ldquo;SafeGuard transformed how we handle digital safeguarding.&rdquo;</p>
+          <p className="text-sm font-medium text-slate-200">&ldquo;ScreenAlert transformed how we handle digital safeguarding.&rdquo;</p>
           <p className="text-xs text-slate-500 mt-0.5">Sarah Johnson, Registered Manager — Oakwood House</p>
         </div>
       </div>
@@ -200,12 +202,14 @@ export default function LoginPage() {
 
   const mobileLogoBar = (
     <div className="flex lg:hidden items-center gap-3 mb-10 justify-center">
-      <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-500">
-        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-      </div>
-      <span className="text-white font-semibold text-lg">SafeGuard</span>
+      <svg viewBox="0 0 56 56" width="34" height="34">
+        <path d="M28,8 L46,14 L46,32 Q46,46 28,50 Q10,46 10,32 L10,14 Z" fill="white" opacity="0.9"/>
+        <circle cx="38" cy="17" r="6" fill="#1DB894"/>
+        <circle cx="38" cy="17" r="3" fill="#0f172a"/>
+      </svg>
+      <span className="text-white font-semibold text-lg">
+        Screen<span style={{ color: "#1DB894", fontWeight: 700 }}>Alert</span>
+      </span>
     </div>
   );
 

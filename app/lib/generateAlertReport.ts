@@ -41,7 +41,7 @@ export function generateAlertReport(
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>SafeGuard Alert Report — #${alert.id}</title>
+<title>ScreenAlert Report — #${alert.id}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; background: #fff; font-size: 13px; }
@@ -50,7 +50,7 @@ export function generateAlertReport(
   /* ── Header ── */
   .header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 24px; border-bottom: 2px solid #e2e8f0; margin-bottom: 32px; }
   .logo { display: flex; align-items: center; gap: 14px; }
-  .logo-icon { width: 46px; height: 46px; background: #7c3aed; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo-icon { width: 46px; height: 46px; background: #3D3F8A; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .logo-icon svg { width: 28px; height: 28px; }
   .logo-name { font-size: 22px; font-weight: 700; color: #1e293b; letter-spacing: -0.4px; line-height: 1; }
   .logo-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
@@ -122,7 +122,7 @@ export function generateAlertReport(
         </svg>
       </div>
       <div>
-        <div class="logo-name">SafeGuard</div>
+        <div class="logo-name">ScreenAlert</div>
         <div class="logo-sub">${esc(homeName)}</div>
       </div>
     </div>
@@ -218,7 +218,7 @@ export function generateAlertReport(
 
   <!-- Footer -->
   <div class="footer">
-    <p>SafeGuard Residential Monitoring &nbsp;·&nbsp; Confidential safeguarding document &nbsp;·&nbsp; Not for public disclosure</p>
+    <p>ScreenAlert Residential Monitoring &nbsp;·&nbsp; Confidential safeguarding document &nbsp;·&nbsp; Not for public disclosure</p>
     <p>Alert #${alert.id} &nbsp;·&nbsp; ${generatedAt}</p>
   </div>
 
@@ -246,7 +246,7 @@ ${alert.hasScreenshot ? `<div class="page screenshot-page">
   </div>
 
   <div class="ss-note">
-    This screenshot was captured automatically by SafeGuard when the flagged content was detected on ${alertTime}.
+    This screenshot was captured automatically by ScreenAlert when the flagged content was detected on ${alertTime}.
     ${alert.app ? `Content was detected in <strong>${esc(alert.app)}</strong>.` : ""}
     This image is retained as part of the safeguarding record and is subject to data protection legislation.
     Handle and store in accordance with your organisation's safeguarding and information governance policies.

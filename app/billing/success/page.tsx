@@ -25,7 +25,7 @@ function SuccessContent() {
             </svg>
           </div>
           <h1 className="text-xl font-semibold text-white">Payment set up successfully!</h1>
-          <p className="text-sm text-emerald-100 mt-1">Your SafeGuard subscription is now active.</p>
+          <p className="text-sm text-emerald-100 mt-1">Your ScreenAlert subscription is now active.</p>
         </div>
 
         <div className="px-8 py-6 space-y-5">
@@ -62,7 +62,7 @@ function SuccessContent() {
           {/* Actions */}
           <div className="flex flex-col gap-2.5 pt-1">
             <Link
-              href="/"
+              href="/dashboard"
               className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
