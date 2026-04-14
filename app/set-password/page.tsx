@@ -25,17 +25,40 @@ export default function SetPasswordPage() {
   // Handles two flows:
   //   1. Invite link  — hash contains #access_token=...&type=invite
   //   2. Password reset — query string contains ?code=... (PKCE flow)
+  //
+  // sessionReady is set via three paths (first one wins):
+  //   Path 1 — onAuthStateChange fires INITIAL_SESSION / SIGNED_IN with a session
+  //   Path 2 — getSession() finds an already-established session immediately
+  //   Path 3 — URL token parsing exchanges tokens and triggers Path 1 via SIGNED_IN
   useEffect(() => {
     if (sessionEstablished.current) return;
     sessionEstablished.current = true;
 
+    // Path 1: auth state listener — catches any session the SDK establishes,
+    // including after exchangeCodeForSession / setSession complete below.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session) {
+        console.log("[set-password] onAuthStateChange:", event, session.user.email);
+        setSessionReady(true);
+      }
+    });
+
+    // Path 2: immediate getSession — Supabase may have already exchanged the token
+    // (e.g. PKCE exchange happened before this effect ran).
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        console.log("[set-password] getSession: existing session found for", session.user.email);
+        setSessionReady(true);
+      }
+    });
+
+    // Path 3: parse URL tokens and establish session manually.
     const hash = window.location.hash;
     const search = window.location.search;
     console.log("[set-password] hash:", hash, "search:", search);
 
-    // ── PKCE recovery flow (password reset emails) ───────────────────────
-    const searchParams = new URLSearchParams(search);
-    const code = searchParams.get("code");
+    // ── PKCE recovery flow (password reset emails) ─────────────────────
+    const code = new URLSearchParams(search).get("code");
     if (code) {
       supabase.auth
         .exchangeCodeForSession(code)
@@ -43,48 +66,48 @@ export default function SetPasswordPage() {
           if (sessionErr || !session) {
             console.error("[set-password] exchangeCodeForSession error:", sessionErr?.message);
             setError("This reset link has expired or already been used. Please request a new one.");
+            setSessionReady(true); // enable button so the error is actionable
             return;
           }
-          console.log("[set-password] recovery session established for", session.user.email);
+          console.log("[set-password] PKCE session established for", session.user.email);
           history.replaceState(null, "", window.location.pathname);
-          setSessionReady(true);
+          // Path 1 (onAuthStateChange SIGNED_IN) will set sessionReady.
         });
-      return;
+      return () => subscription.unsubscribe();
     }
 
-    // ── Hash token flow (invite emails) ─────────────────────────────────
+    // ── Hash token flow (invite emails) ───────────────────────────────
     const hashParams = new URLSearchParams(hash.slice(1));
     const accessToken = hashParams.get("access_token");
     const refreshToken = hashParams.get("refresh_token");
 
-    if (!accessToken || !refreshToken) {
-      // No tokens — check if a session already exists (e.g. navigated here directly
-      // or arrived after OTP login which already established a session)
+    if (accessToken && refreshToken) {
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ data: { session }, error: sessionErr }) => {
+          if (sessionErr || !session) {
+            console.error("[set-password] setSession error:", sessionErr?.message);
+            setError("Invalid or expired invite link. Please ask an admin to resend the invitation.");
+            setSessionReady(true); // enable button so the error is actionable
+            return;
+          }
+          console.log("[set-password] invite session established for", session.user.email);
+          history.replaceState(null, "", window.location.pathname);
+          // Path 1 (onAuthStateChange SIGNED_IN) will set sessionReady.
+        });
+    } else {
+      // No tokens in URL — Paths 1 and 2 cover existing sessions.
+      // If neither found anything, enable the form with an explanatory error.
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          console.log("[set-password] existing session found");
-          setSessionReady(true);
-        } else {
-          // No session and no tokens — still allow the form but show error on submit
+        if (!session) {
+          console.warn("[set-password] no session and no URL tokens");
           setSessionReady(true);
           setError("No active session found. Please use the reset link from your email or sign in first.");
         }
       });
-      return;
     }
 
-    supabase.auth
-      .setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(({ data: { session }, error: sessionErr }) => {
-        if (sessionErr || !session) {
-          console.error("[set-password] setSession error:", sessionErr?.message);
-          setError("Invalid or expired invite link. Please ask an admin to resend the invitation.");
-          return;
-        }
-        console.log("[set-password] session established for", session.user.email);
-        history.replaceState(null, "", window.location.pathname);
-        setSessionReady(true);
-      });
+    return () => subscription.unsubscribe();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
