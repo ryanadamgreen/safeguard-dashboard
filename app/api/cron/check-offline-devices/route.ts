@@ -65,8 +65,8 @@ export async function GET(request: Request) {
     home_id: d.home_id,
     category: "device_offline",
     alert_type: "device_offline",
-    severity: "low",
-    description: `${d.device_name ?? "Device"} has not sent a heartbeat for over 5 minutes.`,
+    severity: "high",
+    description: `${d.device_name ?? "Device"} has not sent a heartbeat for over 5 minutes. Screen monitoring and remote controls are suspended until the device reconnects.`,
     resolved: false,
   }));
 
