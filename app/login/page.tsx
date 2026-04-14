@@ -77,9 +77,18 @@ export default function LoginPage() {
         return;
       }
 
-      // OTP temporarily disabled — skip straight to dashboard
+      // OTP temporarily disabled — skip straight to role-based redirect
       // Re-enable by restoring the send-otp fetch and setStep("otp") below
-      window.location.replace("/dashboard"); return;
+      const meRes = await fetch("/api/me", { cache: "no-store" });
+      if (meRes.ok) {
+        const { staff } = await meRes.json();
+        const { mapDbRole } = await import("../lib/auth");
+        const role = mapDbRole(staff.role);
+        window.location.replace(role === "SUPER_ADMIN" || role === "ADMIN" ? "/admin" : "/dashboard");
+      } else {
+        window.location.replace("/dashboard");
+      }
+      return;
     } catch {
       setError("An unexpected error occurred. Please try again.");
     }
@@ -103,7 +112,15 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      window.location.replace("/dashboard");
+      const meRes = await fetch("/api/me", { cache: "no-store" });
+      if (meRes.ok) {
+        const { staff } = await meRes.json();
+        const { mapDbRole } = await import("../lib/auth");
+        const role = mapDbRole(staff.role);
+        window.location.replace(role === "SUPER_ADMIN" || role === "ADMIN" ? "/admin" : "/dashboard");
+      } else {
+        window.location.replace("/dashboard");
+      }
     } catch {
       setError("An unexpected error occurred. Please try again.");
       setLoading(false);

@@ -1,4 +1,4 @@
-export type Role = "ADMIN" | "HOME_STAFF" | "READONLY_STAFF";
+export type Role = "SUPER_ADMIN" | "ADMIN" | "HOME_STAFF" | "READONLY_STAFF";
 
 export type JobTitle =
   | "Responsible Individual"
@@ -23,6 +23,7 @@ export interface AuthUser {
 
 export function roleLabel(role: Role): string {
   switch (role) {
+    case "SUPER_ADMIN":    return "Super Administrator";
     case "ADMIN":          return "Administrator";
     case "HOME_STAFF":     return "Home Staff";
     case "READONLY_STAFF": return "Read-only Access";
@@ -31,7 +32,8 @@ export function roleLabel(role: Role): string {
 
 /** Map Supabase DB role string → app Role enum */
 export function mapDbRole(dbRole: string): Role {
-  if (dbRole === "admin" || dbRole === "super_admin") return "ADMIN";
-  if (dbRole === "readonly_staff")                    return "READONLY_STAFF";
+  if (dbRole === "super_admin")    return "SUPER_ADMIN";
+  if (dbRole === "admin")          return "ADMIN";
+  if (dbRole === "readonly_staff") return "READONLY_STAFF";
   return "HOME_STAFF";
 }
